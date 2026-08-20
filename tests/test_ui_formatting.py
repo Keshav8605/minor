@@ -3,9 +3,9 @@ from app.formatting import format_confidence, parse_vlm_output
 
 class TestUIFormatting(unittest.TestCase):
     def test_format_confidence(self):
-        self.assertIn("green", format_confidence(0.9))
-        self.assertIn("orange", format_confidence(0.6))
-        self.assertIn("red", format_confidence(0.2))
+        self.assertIn("#10b981", format_confidence(0.9))
+        self.assertIn("#f59e0b", format_confidence(0.6))
+        self.assertIn("#ef4444", format_confidence(0.2))
         self.assertIn("N/A", format_confidence("N/A"))
         
     def test_parse_valid_output(self):
@@ -19,11 +19,11 @@ class TestUIFormatting(unittest.TestCase):
         }
         
         h, c, t, cat, dep, r = parse_vlm_output(mock_result)
-        self.assertEqual(h, "Yes (Humorous)")
-        self.assertIn("green", c)
+        self.assertEqual(h, "Humorous")
+        self.assertIn("#10b981", c)
         self.assertEqual(t, "Hello")
-        self.assertEqual(cat, "Family")
-        self.assertEqual(dep, "High")
+        self.assertEqual(cat, "Category: Family | Relevance: High")
+        self.assertEqual(dep, "")
         self.assertEqual(r, "funny")
         
     def test_parse_error_output(self):
