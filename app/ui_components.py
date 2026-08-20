@@ -7,226 +7,308 @@ except ImportError:
 CUSTOM_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Apply clean academic font & charcoal/dark-navy theme */
+/* ──────────────────────────────────────────────
+   BASE CONTAINER AND RESET
+   ────────────────────────────────────────────── */
 .gradio-container {
     font-family: 'Inter', sans-serif !important;
-    background-color: #0B0D18 !important;
-    color: #F3F4F6 !important;
-    max-width: 1400px !important;
+    background-color: #0B1020 !important;
+    color: #F4F6FA !important;
+    width: calc(100% - 64px) !important;
+    max-width: 1500px !important;
     margin: 0 auto !important;
     padding: 24px 32px !important;
     border: none !important;
     box-shadow: none !important;
 }
 
-/* Header Spacing and Hierarchy */
-.header-container {
-    margin-bottom: 28px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #252A40;
-    text-align: left;
+/* Hide Gradio footer */
+footer {
+    display: none !important;
 }
 
-.header-container h1 {
-    font-size: 30px !important;
+/* ──────────────────────────────────────────────
+   HEADER SECTION
+   ────────────────────────────────────────────── */
+.header-section {
+    margin-bottom: 20px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid #29324A !important;
+}
+
+.header-section h1 {
+    font-size: 32px !important;
     font-weight: 700 !important;
-    color: #F3F4F6 !important;
-    margin-bottom: 6px !important;
+    color: #F4F6FA !important;
+    margin: 0 0 6px 0 !important;
     letter-spacing: -0.02em !important;
 }
 
-.header-container p {
-    color: #9CA3AF !important;
+.header-section p {
+    color: #AAB4C5 !important;
     font-size: 14px !important;
-    font-weight: 400 !important;
+    margin: 0 !important;
 }
 
-/* Two-Column Grid Setup */
-.two-column-layout {
-    display: grid !important;
-    grid-template-columns: minmax(380px, 0.42fr) minmax(550px, 0.58fr) !important;
-    gap: 24px !important;
-    align-items: start !important;
+/* ──────────────────────────────────────────────
+   MAIN GRID LAYOUT
+   ────────────────────────────────────────────── */
+.main-grid {
+    gap: 20px !important;
 }
 
-/* Cards (Input and Output) */
-.input-panel, .output-panel {
-    background-color: #111426 !important;
-    border: 1px solid #252A40 !important;
-    border-radius: 12px !important;
+/* Left Input Card / Right Output Card panel styling */
+.panel-card {
+    background-color: #12182A !important;
+    border: 1px solid #29324A !important;
+    border-radius: 16px !important;
     padding: 24px !important;
-    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Card Heading Header format */
-.card-title {
+/* ──────────────────────────────────────────────
+   TYPOGRAPHY & HEADINGS
+   ────────────────────────────────────────────── */
+.panel-title {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #F4F6FA !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    border-bottom: 1px solid #29324A !important;
+    padding-bottom: 8px !important;
+}
+
+.results-subtitle {
+    font-size: 14px !important;
+    color: #AAB4C5 !important;
+    margin-top: 12px !important;
+    margin-bottom: 14px !important;
+}
+
+/* ──────────────────────────────────────────────
+   INNER RESULTS CARDS
+   ────────────────────────────────────────────── */
+.result-card {
+    background-color: #171E31 !important;
+    border: 1px solid #29324A !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 16px !important;
+    height: auto !important;
+    transition: all 0.2s ease !important;
+}
+
+.result-card:hover {
+    border-color: #38BDF8 !important;
+}
+
+.card-label {
     font-size: 13px !important;
     font-weight: 600 !important;
-    color: #9CA3AF !important;
-    letter-spacing: 0.05em !important;
+    color: #AAB4C5 !important;
+    letter-spacing: 0.06em !important;
     text-transform: uppercase !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
 }
 
-/* Image Dropzone Customization */
+/* Textarea / Input styling within result cards */
+.result-card textarea {
+    background-color: transparent !important;
+    border: none !important;
+    color: #F4F6FA !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 15px !important;
+    line-height: 1.55 !important;
+    padding: 0 !important;
+    resize: none !important;
+    width: 100% !important;
+}
+
+.result-card textarea:focus {
+    box-shadow: none !important;
+}
+
+/* Specific styling for Humor prediction text */
+.prediction-box textarea {
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #22C55E !important; /* Green for positive humor, adjusted on output */
+}
+
+/* ──────────────────────────────────────────────
+   IMAGE UPLOAD COMPONENT
+   ────────────────────────────────────────────── */
 .meme-dropzone {
-    border: 1px dashed #252A40 !important;
-    background-color: #15182A !important;
-    border-radius: 8px !important;
+    border: 1px dashed #29324A !important;
+    background-color: #171E31 !important;
+    border-radius: 12px !important;
     overflow: hidden !important;
+    margin-bottom: 20px !important;
+    transition: border-color 0.25s ease !important;
 }
 
-.meme-dropzone .image-container {
-    max-height: 230px !important;
+.meme-dropzone:hover {
+    border-color: #8B5CF6 !important;
 }
 
-/* Radio Button Segmented Control */
+/* ──────────────────────────────────────────────
+   SEGMENTED CONTROL (Cultural Toggle)
+   ────────────────────────────────────────────── */
 .segmented-control {
-    background-color: #15182A !important;
-    border: 1px solid #252A40 !important;
-    border-radius: 8px !important;
+    background-color: #171E31 !important;
+    border: 1px solid #29324A !important;
+    border-radius: 10px !important;
     padding: 4px !important;
-    margin-top: 8px !important;
+    margin-bottom: 16px !important;
 }
 
 .segmented-control label {
     flex: 1 !important;
     text-align: center !important;
-    padding: 8px 14px !important;
-    color: #9CA3AF !important;
+    padding: 10px 16px !important;
+    color: #AAB4C5 !important;
     font-weight: 500 !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
     cursor: pointer !important;
-    border-radius: 6px !important;
+    border-radius: 8px !important;
     transition: all 0.2s ease !important;
     border: 1px solid transparent !important;
     background: transparent !important;
 }
 
-/* Hide native circular checkboxes */
-.segmented-control input[type="radio"] {
-    display: none !important;
-}
-
-/* Styled Selected State via CSS has() */
 .segmented-control label:has(input[type="radio"]:checked) {
-    background-color: rgba(139, 92, 246, 0.12) !important;
-    color: #8B5CF6 !important;
-    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    background-color: rgba(139, 92, 246, 0.15) !important;
+    color: #F4F6FA !important;
+    border: 1px solid rgba(139, 92, 246, 0.35) !important;
 }
 
-.toggle-explanation {
-    margin-top: 10px !important;
-    font-size: 12px !important;
-    color: #9CA3AF !important;
-    line-height: 1.45 !important;
+.mode-explanation {
+    font-size: 13px !important;
+    color: #AAB4C5 !important;
+    line-height: 1.5 !important;
+    margin-bottom: 20px !important;
 }
 
-.toggle-explanation strong {
-    color: #F3F4F6 !important;
-    display: block !important;
-    margin-top: 6px !important;
+.mode-explanation strong {
+    color: #F4F6FA !important;
     font-weight: 600 !important;
+    display: inline-block !important;
+    margin-bottom: 2px !important;
 }
 
-/* Custom styled action button with subtle purple */
+/* ──────────────────────────────────────────────
+   ANALYZE BUTTON
+   ────────────────────────────────────────────── */
 #analyze-btn {
-    background: #8B5CF6 !important;
-    color: white !important;
+    background: linear-gradient(135deg, #7C3AED, #8B5CF6) !important;
+    color: #FFFFFF !important;
     font-weight: 600 !important;
     font-size: 16px !important;
-    height: 50px !important;
+    height: 52px !important;
     border: none !important;
-    border-radius: 8px !important;
-    transition: all 0.2s ease !important;
+    border-radius: 10px !important;
     cursor: pointer !important;
-    margin-top: 18px !important;
+    transition: all 0.2s ease !important;
+    width: 100% !important;
+    margin-top: 10px !important;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2) !important;
 }
 
 #analyze-btn:hover {
-    background: #7C3AED !important;
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.3) !important;
+    background: linear-gradient(135deg, #6D28D9, #7C3AED) !important;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35) !important;
 }
 
 #analyze-btn:active {
     transform: translateY(1px) !important;
 }
 
-/* Outputs & Results Box layouts */
-.results-subhead {
-    font-size: 13px !important;
-    color: #9CA3AF !important;
-    margin-bottom: 20px !important;
-    border-bottom: 1px solid #252A40;
-    padding-bottom: 12px;
+/* ──────────────────────────────────────────────
+   GRID ROWS AND EQUAL WIDTHS
+   ────────────────────────────────────────────── */
+.top-row, .middle-row {
+    gap: 16px !important;
 }
 
-.result-card-item {
-    background-color: #15182A !important;
-    border: 1px solid #252A40 !important;
-    border-radius: 8px !important;
-    margin-bottom: 16px !important;
+.top-row > *, .middle-row > * {
+    flex: 1 !important;
+    min-width: 0 !important;
+    margin-bottom: 0 !important;
 }
 
-/* Prediction Block text values */
-.prediction-box textarea {
-    font-size: 18px !important;
-    font-weight: 700 !important;
-    color: #F3F4F6 !important;
-    background-color: #15182A !important;
-    border: none !important;
-    text-align: left !important;
-    padding: 12px !important;
-}
-
-/* Confidence score box centring */
-.confidence-box {
+/* ──────────────────────────────────────────────
+   PROCESSING / LOADING STATE OVERRIDES
+   ────────────────────────────────────────────── */
+.pending {
+    background-color: rgba(18, 24, 42, 0.95) !important;
+    border-radius: 12px !important;
     display: flex !important;
-    justify-content: flex-start !important;
+    flex-direction: column !important;
+    justify-content: center !important;
     align-items: center !important;
-    padding: 12px !important;
-    min-height: 48px !important;
+    padding: 24px !important;
+    gap: 12px !important;
 }
 
-/* Equalise top row card heights */
-.top-results-row > * {
-    min-height: 80px !important;
+.pending .eta-bar, .pending .loading {
+    display: none !important;
 }
 
-/* OCR Box */
-.ocr-box textarea {
+/* Analyzing text */
+.pending::after {
+    content: "Analyzing meme..." !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 14px !important;
-    line-height: 1.5 !important;
-    padding: 14px !important;
-    background-color: #15182A !important;
-    border: none !important;
-}
-
-/* Reasoning Box */
-.reasoning-box textarea {
-    font-size: 14px !important;
-    line-height: 1.6 !important;
-    color: #F3F4F6 !important;
-    padding: 14px !important;
-    background-color: #15182A !important;
-    border: none !important;
-}
-
-/* Customized Gradio loader overlay */
-.loading {
-    background-color: rgba(11, 13, 24, 0.85) !important;
-}
-
-.loading .loading-icon {
-    border-color: #8B5CF6 !important;
-    border-right-color: transparent !important;
-}
-
-.loading .meta-text {
-    font-size: 13px !important;
-    color: #9CA3AF !important;
     font-weight: 500 !important;
+    color: #AAB4C5 !important;
+    display: block !important;
+}
+
+/* Indeterminate progress bar track */
+.pending::before {
+    content: "" !important;
+    display: block !important;
+    width: 160px !important;
+    height: 4px !important;
+    background: #29324A !important;
+    border-radius: 999px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* ──────────────────────────────────────────────
+   RESPONSIVENESS
+   ────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .gradio-container {
+        width: calc(100% - 32px) !important;
+        padding: 20px 16px !important;
+    }
+    .main-grid {
+        flex-direction: column !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .gradio-container {
+        width: 100% !important;
+        padding: 16px 12px !important;
+    }
+    .top-row, .middle-row {
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+    .top-row > *, .middle-row > * {
+        margin-bottom: 16px !important;
+    }
 }
 """
 
@@ -242,23 +324,28 @@ def create_ui(analyze_fn):
         sys.exit(1)
         
     with gr.Blocks(title="Culturally Aware Humor Detection") as demo:
-        with gr.Column(elem_classes=["header-container"]):
+        
+        # ── HEADER ──
+        with gr.Column(elem_classes=["header-section"]):
             gr.Markdown("# 🎭 Culturally Aware Humor Detection")
             gr.Markdown("AI-Powered Hindi/Hinglish Meme Analysis")
         
-        with gr.Row(elem_classes=["two-column-layout"]):
-            with gr.Column(scale=42, elem_classes=["input-panel"]):
-                gr.Markdown("### MEME INPUT", elem_classes=["card-title"])
+        # ── MAIN LAYOUT GRID ──
+        with gr.Row(elem_classes=["main-grid"]):
+            
+            # ── LEFT COLUMN: INPUT PANEL (42%) ──
+            with gr.Column(scale=42, elem_classes=["panel-card"]):
+                gr.Markdown("📥 MEME INPUT", elem_classes=["panel-title"])
                 
                 image_input = gr.Image(
                     type="filepath", 
                     label="Upload Meme", 
-                    height=230,
+                    height=240,
                     elem_classes=["meme-dropzone"],
                     show_label=False
                 )
                 
-                gr.Markdown("### Cultural Context", elem_classes=["card-title"])
+                gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["panel-title"])
                 
                 cultural_toggle = gr.Radio(
                     choices=["General", "Cultural-Aware"], 
@@ -268,52 +355,69 @@ def create_ui(analyze_fn):
                 )
                 
                 gr.Markdown(
-                    "**General**\n"
-                    "Standard VLM reasoning without explicit cultural context.\n\n"
-                    "**Cultural-Aware**\n"
+                    "**General**  \n"
+                    "Standard VLM reasoning without explicit cultural context.  \n\n"
+                    "**Cultural-Aware**  \n"
                     "Uses relevant Indian cultural context during reasoning.",
-                    elem_classes=["toggle-explanation"]
+                    elem_classes=["mode-explanation"]
                 )
                 
-                analyze_btn = gr.Button("Analyze Meme", elem_id="analyze-btn")
+                analyze_btn = gr.Button("✨ Analyze Meme", elem_id="analyze-btn")
+            
+            # ── RIGHT COLUMN: RESULTS PANEL (58%) ──
+            with gr.Column(scale=58, elem_classes=["panel-card"]):
+                gr.Markdown("📊 ANALYSIS RESULTS", elem_classes=["panel-title"])
+                gr.Markdown("AI-generated insights from your meme", elem_classes=["results-subtitle"])
                 
-            with gr.Column(scale=58, elem_classes=["output-panel"]):
-                gr.Markdown("### Analysis Results", elem_classes=["card-title"])
-                gr.Markdown("AI-generated insights from your meme", elem_classes=["results-subhead"])
+                # Row 1: Humor Prediction + Confidence Score
+                with gr.Row(elem_classes=["top-row"], equal_height=True):
+                    with gr.Column(elem_classes=["result-card"]):
+                        gr.Markdown("🎯 HUMOR PREDICTION", elem_classes=["card-label"])
+                        pred_out = gr.Textbox(
+                            show_label=False, 
+                            interactive=False, 
+                            elem_classes=["prediction-box"]
+                        )
+                    with gr.Column(elem_classes=["result-card"]):
+                        gr.Markdown("◉ CONFIDENCE SCORE", elem_classes=["card-label"])
+                        conf_out = gr.HTML(elem_classes=["confidence-display"])
                 
-                with gr.Row(elem_classes=["top-results-row"]):
-                    pred_out = gr.Textbox(
-                        label="HUMOR PREDICTION", 
+                # Row 2: Detected Text (OCR)
+                with gr.Column(elem_classes=["result-card"]):
+                    gr.Markdown("📄 DETECTED TEXT (OCR)", elem_classes=["card-label"])
+                    text_out = gr.Textbox(
+                        show_label=False, 
                         interactive=False, 
-                        elem_classes=["prediction-box", "result-card-item"]
+                        lines=2
                     )
-                    with gr.Column(elem_classes=["result-card-item"]):
-                        gr.Markdown("CONFIDENCE LEVEL", elem_classes=["card-title"])
-                        conf_out = gr.HTML(elem_classes=["confidence-box"])
-                        
-                text_out = gr.Textbox(
-                    label="DETECTED TEXT (OCR)", 
-                    interactive=False, 
-                    lines=2,
-                    elem_classes=["ocr-box", "result-card-item"]
-                )
                 
-                # cat_out maps to CULTURAL CONTEXT. dep_out is hidden to present a unified context view.
-                cat_out = gr.Textbox(
-                    label="CULTURAL CONTEXT", 
-                    interactive=False, 
-                    lines=2,
-                    elem_classes=["ocr-box", "result-card-item"]
-                )
-                dep_out = gr.Textbox(visible=False)
+                # Row 3: Cultural Context + Cultural Dependency
+                with gr.Row(elem_classes=["middle-row"], equal_height=True):
+                    with gr.Column(elem_classes=["result-card"]):
+                        gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["card-label"])
+                        cat_out = gr.Textbox(
+                            show_label=False, 
+                            interactive=False, 
+                            lines=2
+                        )
+                    with gr.Column(elem_classes=["result-card"]):
+                        gr.Markdown("🔗 CULTURAL DEPENDENCY", elem_classes=["card-label"])
+                        dep_out = gr.Textbox(
+                            show_label=False, 
+                            interactive=False, 
+                            lines=2
+                        )
                 
-                reason_out = gr.Textbox(
-                    label="AI REASONING", 
-                    interactive=False, 
-                    lines=5,
-                    elem_classes=["reasoning-box", "result-card-item"]
-                )
+                # Row 4: AI Reasoning
+                with gr.Column(elem_classes=["result-card"]):
+                    gr.Markdown("🧠 AI REASONING", elem_classes=["card-label"])
+                    reason_out = gr.Textbox(
+                        show_label=False, 
+                        interactive=False, 
+                        lines=4
+                    )
                 
+        # ── CLICK ACTION BINDING ──
         analyze_btn.click(
             fn=analyze_fn,
             inputs=[image_input, cultural_toggle],
