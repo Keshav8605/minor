@@ -1,0 +1,5 @@
+model_id: "Qwen/Qwen2.5-VL-3B-Instruct"
+generation:
+  max_new_tokens: 512
+  temperature: 0.1
+  do_sample: false

@@ -1,0 +1,33 @@
+[project]
+name = "hindi-humor-vlm"
+version = "0.1.0"
+description = "Culturally Aware Multimodal Humor Detection in Hindi Language Using Large Vision-Language Models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "torch",
+    "transformers",
+    "Pillow",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "gradio",
+    "python-dotenv",
+    "qwen-vl-utils",
+    "torchvision",
+    "accelerate",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

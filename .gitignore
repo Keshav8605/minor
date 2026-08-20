@@ -1,0 +1,44 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Data and Models
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/external/*
+!data/external/.gitkeep
+*.pt
+*.pth
+*.bin
+*.h5
+*.safetensors
+*.ckpt
+
+# Notebooks
+.ipynb_checkpoints
+
+# IDE
+.idea/
+.vscode/
+
+# Experiment results
+results/*
+!results/.gitkeep
+experiments/*
+!experiments/.gitkeep
+
+# Other
+.pytest_cache/

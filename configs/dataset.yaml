@@ -1,0 +1,5 @@
+raw_data_dir: "Memotion 3"
+processed_data_dir: "data/processed"
+random_seed: 42
+target_label: "is_humorous"
+val_split_ratio: 0.1

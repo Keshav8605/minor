@@ -1,0 +1,174 @@
+﻿
+============================================================
+SPLIT: train
+Shape: (6300, 10)
+Columns: ['Unnamed: 0', 'image_url', 'humour', 'sarcastic', 'offensive', 'motivational', 'overall', 'ocr', 'is_humorous', 'image_filename']
+Dtypes:
+Unnamed: 0        int64
+image_url           str
+humour              str
+sarcastic           str
+offensive           str
+motivational        str
+overall             str
+ocr                 str
+is_humorous       int64
+image_filename      str
+dtype: object
+
+Head (3 rows):
+   Unnamed: 0                                                                                               image_url humour        sarcastic      offensive      motivational        overall                                                                                                                                    ocr  is_humorous image_filename
+0        4331     https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCZW6xoS0LoNn68hBm5cqIvtk7pizvRSbXig&usqp=CAU  funny          general         slight  not_motivational       negative                                                                                    Tonight's debate between\nKamala Harris and The Fly            1       4331.jpg
+1         647     https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjDoSWMR_Kq4r5Uk9kT4sjhOyyZc8zhHIWFg&usqp=CAU  funny  twisted_meaning  not_offensive  not_motivational       positive                                                                            Flexing in March 2019\nFlexing in March 2020\nPurell\nVETTE            1        647.jpg
+2        4811  https://images.news18.com/ibnlive/uploads/2020/08/1596772963_untitled-design-2020-08-07t093034.306.png  funny          general  not_offensive      motivational  very_positive  αñ¬αÑìαñ░αñºαñ╛αñ¿\n@black_sparrow12\n#binod after writing BINOD in the comment\nLe binod:\nBinod Tharu 1 week ago\nBinod\nmaine ki hai mehnat\nB            1       4811.jpg
+
+Missing values:
+Unnamed: 0        0
+image_url         0
+humour            0
+sarcastic         0
+offensive         0
+motivational      0
+overall           0
+ocr               0
+is_humorous       0
+image_filename    0
+dtype: int64
+
+Unique values per column:
+  Unnamed: 0: 6300 unique
+  image_url: 6300 unique
+  humour: 4 unique
+  sarcastic: 4 unique
+  offensive: 4 unique
+  motivational: 2 unique
+  overall: 5 unique
+  ocr: 6248 unique
+  is_humorous: 2 unique
+  image_filename: 6300 unique
+
+  Value counts for 'humour':
+  {'funny': 3066, 'very_funny': 1827, 'not_funny': 909, 'hilarious': 498}
+
+  Value counts for 'sarcastic':
+  {'twisted_meaning': 2681, 'general': 1775, 'not_sarcastic': 1343, 'very_twisted': 501}
+
+  Value counts for 'offensive':
+  {'not_offensive': 3857, 'slight': 1740, 'very_offensive': 527, 'hateful_offensive': 176}
+
+  Value counts for 'motivational':
+  {'not_motivational': 5554, 'motivational': 746}
+
+  Value counts for 'overall':
+  {'neutral': 2657, 'positive': 1740, 'negative': 1289, 'very_positive': 334, 'very_negative': 280}
+
+  Value counts for 'is_humorous':
+  {1: 5391, 0: 909}
+
+============================================================
+SPLIT: validation
+Shape: (700, 10)
+Columns: ['Unnamed: 0', 'image_url', 'humour', 'sarcastic', 'offensive', 'motivational', 'overall', 'ocr', 'is_humorous', 'image_filename']
+Dtypes:
+Unnamed: 0        int64
+image_url           str
+humour              str
+sarcastic           str
+offensive           str
+motivational        str
+overall             str
+ocr                 str
+is_humorous       int64
+image_filename      str
+dtype: object
+
+Head (3 rows):
+   Unnamed: 0                                                                                            image_url      humour        sarcastic      offensive      motivational   overall                                                                                                                                                               ocr  is_humorous image_filename
+0        3153  https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhzyGqPtzD_zA-qv3F5x-4lVzSVwNUA0zoLw&usqp=CAU  very_funny          general  not_offensive  not_motivational  positive                                                                                                        ONLY DIE HEART FANS OF SELL-MOM BOI\nWILL WATCH THIS VIDEO            1       3153.jpg
+1         658                              https://i.pinimg.com/236x/57/2e/f8/572ef83f200517c7e8a24141139a852f.jpg   not_funny    not_sarcastic  not_offensive  not_motivational  positive                                                                                                I'M GOING TO SIGN A MOVIE\nWITH EMRAAN HASHMI\nVIRAT KOHLI BE LIKE            0        658.jpg
+2        6572                                                                  https://i.redd.it/x3dqlml2x3g61.jpg  very_funny  twisted_meaning         slight  not_motivational  negative  BUDGET 2021\nWe have lost jobs\nand income. Give us\nsome tax breaks.\nIndian middle class\nNo tax breaks. We\nwill levy additional\nFarm Cess\nFinance minister            1       6572.jpg
+
+Missing values:
+Unnamed: 0        0
+image_url         0
+humour            0
+sarcastic         0
+offensive         0
+motivational      0
+overall           0
+ocr               0
+is_humorous       0
+image_filename    0
+dtype: int64
+
+Unique values per column:
+  Unnamed: 0: 700 unique
+  image_url: 700 unique
+  humour: 4 unique
+  sarcastic: 4 unique
+  offensive: 4 unique
+  motivational: 2 unique
+  overall: 5 unique
+  ocr: 697 unique
+  is_humorous: 2 unique
+  image_filename: 700 unique
+
+  Value counts for 'humour':
+  {'funny': 327, 'very_funny': 211, 'not_funny': 101, 'hilarious': 61}
+
+  Value counts for 'sarcastic':
+  {'twisted_meaning': 340, 'general': 178, 'not_sarcastic': 133, 'very_twisted': 49}
+
+  Value counts for 'offensive':
+  {'not_offensive': 407, 'slight': 195, 'very_offensive': 83, 'hateful_offensive': 15}
+
+  Value counts for 'motivational':
+  {'not_motivational': 616, 'motivational': 84}
+
+  Value counts for 'overall':
+  {'neutral': 313, 'negative': 165, 'positive': 162, 'very_positive': 39, 'very_negative': 21}
+
+  Value counts for 'is_humorous':
+  {1: 599, 0: 101}
+
+============================================================
+SPLIT: test
+Shape: (1500, 4)
+Columns: ['Unnamed: 0', 'image_url', 'ocr', 'image_filename']
+Dtypes:
+Unnamed: 0        int64
+image_url           str
+ocr                 str
+image_filename      str
+dtype: object
+
+Head (3 rows):
+   Unnamed: 0                                                                                            image_url                                                                                                                                                                                                                                              ocr image_filename
+0           0  https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTg7iY__plgfgYF1LCWyfPE0LemUzSDUKnXyw&usqp=CAU                                                                                                                                                                                 #Lockdown4\nmakatteun\nbura lagega but there nothing you can do.          0.jpg
+1           1  https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKinYM_esSKVbpXUQXv4wjwuYoDmEWGa2VeA&usqp=CAU  αñ¬αÑïαñ╕αÑìαñƒ αñòαñ░αñ¿αÑç αñ╡αñ╛αñ▓αÑç\n@alayarwt\nCOBAROK\nHUME KOI AISA EMPLOYEE\nCHAHIYE JISKA PATIENCE\nLEVEL KAFI HIGH HO\nSIR, 10 SAAL SE RCB KO\nSUPPORT KAR RAHA HUN\nIMPERELE COLLER O\nShaChat\nCAMPER PLAC\nARRE BHAYIAA...\nSALARY KITNI LOGE\nGoogle Play          1.jpg
+2           2  https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQv2WJjO3Aa7LzSGnaGrmeA_VPaqN2LDiViCg&usqp=CAU                                                                                                              Girlfriend\nFacebook\nMe\nPubg\nMemes\nInsta\nrm being ignored by my crush same like Kap\nSharma is being ignored in this pic by us          2.jpg
+
+Missing values:
+Unnamed: 0        0
+image_url         0
+ocr               0
+image_filename    0
+dtype: int64
+
+Unique values per column:
+  Unnamed: 0: 1500 unique
+  image_url: 1500 unique
+  ocr: 1480 unique
+  image_filename: 1500 unique
+
+============================================================
+DATA LEAKAGE CHECK
+  Train-Test overlap on 'image_filename': 1358 items
+  Train-Val overlap on 'image_filename': 0 items
+  Test-Val overlap on 'image_filename': 142 items
+  Train-Test overlap on 'image_url': 0 items
+  Train-Val overlap on 'image_url': 0 items
+  Test-Val overlap on 'image_url': 0 items
+  Train-Test overlap on 'Unnamed: 0': 1358 items
+  Train-Val overlap on 'Unnamed: 0': 0 items
+  Test-Val overlap on 'Unnamed: 0': 142 items

@@ -1,0 +1,22 @@
+dataset:
+  train_csv: "data/processed/train.csv"
+  val_csv: "data/processed/validation.csv"
+  test_csv: "data/processed/test.csv"
+  image_dir: "Memotion 3/trainImages/trainImages"
+  test_image_dir: "Memotion 3/testImages/testImages"
+
+models:
+  image_encoder: "google/vit-base-patch16-224"
+  text_encoder: "xlm-roberta-base"
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 5
+  seed: 42
+  results_dir: "results/multimodal_baseline"
+  
+model_config:
+  hidden_size: 256
+  dropout: 0.1
+  mode: "multimodal" # options: "multimodal", "image_only", "text_only"
