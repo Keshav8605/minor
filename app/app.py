@@ -41,9 +41,9 @@ def main():
         print("Gradio is not installed. Please run: uv pip install gradio")
         sys.exit(0)
         
-    from ui_components import create_ui
+    from ui_components import create_ui, CUSTOM_CSS, theme
     demo = create_ui(analyze_meme)
-    demo.launch(server_name="127.0.0.1", server_port=7860, show_error=True)
+    demo.launch(server_name="127.0.0.1", server_port=7860, show_error=True, css=CUSTOM_CSS, theme=theme)
 
 if __name__ == "__main__":
     print("Gradio app entrypoint initialized.")
