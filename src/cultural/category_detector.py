@@ -15,7 +15,11 @@ CATEGORY_KEYWORDS = {
     "social_norms": ["log kya kahenge", "society", "jugaad", "bargain", "sanskar", "sharma ji", "padosi", "aunty", "mohalle", "जुगाड़"],
     "religion": ["mandir", "masjid", "pooja", "puja", "vrat", "prasad", "pandit", "bhagwan", "temple", "ramayan", "mahabharat", "मंदिर", "पूजा"],
     "regional_culture": ["delhi", "mumbai", "bangalore", "bengaluru", "bihar", "punjab", "punjabi", "gujju", "gujarat", "south indian", "local train", "noida", "gurgaon"],
-    "daily_life": ["traffic", "train", "auto", "middle class", "bijli", "ration", "rickshaw", "metro", "chai ki tapri", "किराया"]
+    "daily_life": ["traffic", "train", "auto", "middle class", "bijli", "ration", "rickshaw", "metro", "chai ki tapri", "किराया"],
+    "hindi_slang": ["arey yaar", "bawa", "bhau", "chai sutta", "bakchodi", "scene", "jugaad", "laude", "l lag gaye", "gajab bezzati", "mast plan", "bhaiya", "bhai", "यार"],
+    "internet_culture": ["binod", "rasode", "pawri", "ruk jaa", "choti bacchi", "le", "carryminati", "bb ki vines", "dank", "relatable", "memer", "meme", "मीम"],
+    "other": ["indian", "desi", "bharat", "hindustan"],
+    "none": []
 }
 
 

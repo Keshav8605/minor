@@ -2,6 +2,8 @@
 Main application entry point for the Gradio-based humor detection interface.
 
 Wires the UI to the VLM inference engine with proper cultural mode support.
+Implements SHA-256 content-based caching with mode-aware keys for incremental
+multi-image analysis — previously analyzed images are reused from cache.
 """
 
 import sys
@@ -22,9 +24,14 @@ for d in [root_dir, app_dir]:
         sys.path.insert(0, d)
 
 try:
-    from app.formatting import parse_vlm_output
-except ImportError:
-    from formatting import parse_vlm_output
+    from app.formatting import parse_vlm_output, format_multi_meme_cards
+except (ImportError, ModuleNotFoundError):
+    from formatting import parse_vlm_output, format_multi_meme_cards
+
+try:
+    from app.state_manager import get_image_identity, get_cached_result, store_cached_result, clear_cache
+except (ImportError, ModuleNotFoundError):
+    from state_manager import get_image_identity, get_cached_result, store_cached_result, clear_cache
 
 # Configure logging
 logging.basicConfig(
@@ -100,20 +107,98 @@ def init_cultural_retriever():
         return False
 
 
-def analyze_meme(image_paths, cultural_mode):
+class AnalysisResponse(dict):
     """
-    Main analysis function called by the Gradio UI.
+    Response container that behaves both as a structured dictionary (with 'memes', 'is_multi', 'multi_html')
+    and as an iterable 7-tuple for seamless backward compatibility with existing UI unpacking.
+    """
+    def __iter__(self):
+        return iter(self.get("single_output", ()))
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.get("single_output", ())[item]
+        return super().__getitem__(item)
+
+    def __len__(self):
+        return len(self.get("single_output", ()))
+
+
+def _build_meme_record(result, idx, path):
+    """
+    Build a per-meme record from a VLM result dict.
+
+    Extracts the standard fields needed for multi-meme display
+    without the redundant 'confidence' field.
+    """
+    return {
+        "meme_number": idx,
+        "image_path": str(path),
+        "humorous": result.get("humorous", False),
+        "prediction": result.get("prediction", "Not Humorous"),
+        "humor_probability": result.get("humor_probability", 0.5),
+        "non_humor_probability": result.get("non_humor_probability", 0.5),
+        "detected_text": result.get("detected_text", "No text detected in image"),
+        "cultural_category": result.get("cultural_category", "Not analyzed"),
+        "cultural_dependency": result.get("cultural_dependency", "Not analyzed"),
+        "cultural_context": result.get("cultural_context", "Not analyzed"),
+        "reasoning": result.get("reasoning", ""),
+        "timing": result.get("timing", {})
+    }
+
+
+def _enrich_cultural_result(result, mode, retrieved_context):
+    """
+    Post-inference cultural enrichment: re-queries cultural retriever
+    using the VLM-detected text for potentially better context.
+    Applied consistently in both single and multi-meme paths.
+    """
+    if mode != "cultural" or CULTURAL_RETRIEVER is None:
+        return
+
+    detected = result.get("detected_text", "")
+    if not detected or detected == "No text detected in image":
+        return
+
+    better_context = CULTURAL_RETRIEVER.retrieve_context(detected)
+    if better_context and not retrieved_context:
+        from src.cultural.category_detector import detect_categories
+        categories = detect_categories(detected)
+        if "none" not in categories:
+            result["cultural_category"] = " / ".join(
+                cat.replace("_", " ").title() for cat in categories
+            )
+        if result.get("cultural_context") == "No significant cultural context detected":
+            result["cultural_context"] = better_context.replace(
+                "EXTERNAL CULTURAL CONTEXT:\n", ""
+            ).strip()
+
+
+def analyze_meme(image_paths, cultural_mode, progress=None):
+    """
+    Main analysis function called by the Gradio UI and evaluation pipelines.
+    For single images: runs standard single-image inference pipeline.
+    For multiple images: runs independent per-image processing in exact uploaded order
+    designed to prevent cross-meme data mixing.
+
+    Uses content-based SHA-256 caching with mode-aware keys to avoid redundant
+    VLM inference for previously analyzed images.
 
     Args:
         image_paths: Single image path (str) or list of image paths from Gallery/File.
         cultural_mode: "General" or "Cultural-Aware".
+        progress: Optional Gradio progress instance (gr.Progress).
 
     Returns:
-        Tuple of UI output values.
+        AnalysisResponse: Dictionary supporting both 7-tuple unpacking and .get("memes").
     """
     # Normalize input
     if image_paths is None:
-        return "Error", "N/A", "N/A", "N/A", "N/A", "Please upload at least one image."
+        err_tuple = ("Unavailable", "N/A", "No image uploaded", "No specific cultural category detected", "Not analyzed", "Not analyzed", "Please upload at least one image.")
+        return AnalysisResponse({
+            "is_multi": False, "memes_count": 0, "memes": [],
+            "single_output": err_tuple, "multi_html": ""
+        })
 
     logger.info("[ANALYSIS] Started")
     logger.info("[ANALYSIS] Image received: type=%s, val=%s", type(image_paths), str(image_paths)[:200])
@@ -132,81 +217,193 @@ def analyze_meme(image_paths, cultural_mode):
 
     if not paths:
         logger.warning("[ANALYSIS] No valid image paths found from input: %s", image_paths)
-        return "Error", "N/A", "N/A", "N/A", "N/A", "Please upload a valid image."
+        err_tuple = ("Unavailable", "N/A", "No valid image path found", "No specific cultural category detected", "Not analyzed", "Not analyzed", "Please upload a valid image file.")
+        return AnalysisResponse({
+            "is_multi": False, "memes_count": 0, "memes": [],
+            "single_output": err_tuple, "multi_html": ""
+        })
 
-    logger.info("[ANALYSIS] Image path resolved: %s", paths)
+    logger.info("[ANALYSIS] Image path resolved (count=%d): %s", len(paths), paths)
     logger.info("[ANALYSIS] Mode = %s", cultural_mode)
 
     if not init_engine():
         logger.error("[ANALYSIS] Failed to initialize VLM engine")
-        return "Error", "N/A", "N/A", "N/A", "N/A", "Model is currently unavailable or missing dependencies locally."
+        err_tuple = ("Error", "N/A", "N/A", "N/A", "N/A", "N/A", "Model is currently unavailable or missing dependencies locally.")
+        return AnalysisResponse({
+            "is_multi": False, "memes_count": 0, "memes": [],
+            "single_output": err_tuple, "multi_html": ""
+        })
 
     try:
+        from src.cultural.ocr_engine import extract_text_ocr
         mode = "cultural" if cultural_mode == "Cultural-Aware" else "general"
-        ocr_text = ""
-        retrieved_context = ""
 
-        logger.info("[ANALYSIS] OCR started")
-        # Text reading is handled by multimodal VLM vision understanding
-        logger.info("[ANALYSIS] OCR completed (integrated vision-language text detection)")
-
-        # For Cultural-Aware mode, use the cultural retriever
         if mode == "cultural":
             init_cultural_retriever()
-            if CULTURAL_RETRIEVER is not None:
-                file_context = " ".join([os.path.basename(p) for p in paths])
-                retrieved_context = CULTURAL_RETRIEVER.retrieve_context(file_context)
-                logger.info("[ANALYSIS] Cultural context retrieved: %s",
-                           retrieved_context[:200] if retrieved_context else "none")
 
-        logger.info("[ANALYSIS] Prompt construction started")
-        # Prompt is constructed inside engine.infer()
-        logger.info("[ANALYSIS] Prompt construction completed")
-
-        # Run inference
+        # ── SINGLE MEME ANALYSIS (len == 1) ──
         if len(paths) == 1:
+            p = paths[0]
+            logger.info("[ANALYSIS] Single image path: %s", p)
+
+            # Check cache first (mode-aware)
+            img_identity = get_image_identity(p)
+            cached = get_cached_result(img_identity, mode)
+
+            if cached is not None:
+                logger.info("[ANALYSIS] Reusing cached single-image result")
+                single_output = parse_vlm_output(cached, include_context=True)
+                meme_record = _build_meme_record(cached, idx=1, path=p)
+                return AnalysisResponse({
+                    "is_multi": False,
+                    "memes_count": 1,
+                    "memes": [meme_record],
+                    "single_output": single_output,
+                    "multi_html": "",
+                    "result": cached
+                })
+
+            # Cache MISS — full pipeline
+            # Step 1: Dedicated OCR extraction
+            ocr_text, _ = extract_text_ocr(p)
+            if ocr_text:
+                logger.info("[ANALYSIS] Dedicated OCR extracted: %s", ocr_text[:120])
+
+            # Step 2: Cultural Knowledge Retrieval
+            retrieved_context = ""
+            if mode == "cultural" and CULTURAL_RETRIEVER is not None:
+                search_text = ocr_text if ocr_text else os.path.basename(p)
+                retrieved_context = CULTURAL_RETRIEVER.retrieve_context(search_text)
+
+            # Step 3: VLM inference
             result = VLM_ENGINE.infer(
-                paths[0], mode=mode,
-                ocr_text=ocr_text, retrieved_context=retrieved_context
-            )
-        else:
-            result = VLM_ENGINE.infer_multi(
-                paths, mode=mode,
+                p, mode=mode,
                 ocr_text=ocr_text, retrieved_context=retrieved_context
             )
 
-        # For Cultural-Aware mode, if we got detected_text from VLM,
-        # do a second cultural retrieval pass with actual OCR text
-        if mode == "cultural" and CULTURAL_RETRIEVER is not None:
-            detected = result.get("detected_text", "")
-            if detected and detected != "No text detected in image":
-                better_context = CULTURAL_RETRIEVER.retrieve_context(detected)
-                if better_context and not retrieved_context:
-                    logger.info("[ANALYSIS] Additional cultural context from OCR: %s",
-                               better_context[:200])
-                    from src.cultural.category_detector import detect_categories
-                    categories = detect_categories(detected)
-                    if "none" not in categories:
-                        current_cat = result.get("cultural_category", "")
-                        if not current_cat or "not" in str(current_cat).lower() or "none" in str(current_cat).lower():
-                            result["cultural_category"] = " / ".join(
-                                cat.replace("_", " ").title() for cat in categories
-                            )
-                            logger.info("[ANALYSIS] Updated cultural category from OCR keywords: %s",
-                                       result["cultural_category"])
+            # Step 4: Cultural post-inference enrichment
+            _enrich_cultural_result(result, mode, retrieved_context)
 
-        logger.info("[ANALYSIS] Formatting started")
-        ui_output = parse_vlm_output(result)
-        logger.info("[ANALYSIS] Formatting completed: prediction=%s, confidence=%s",
-                    result.get("humorous"), result.get("confidence"))
+            # Log reasoning status
+            reasoning_val = result.get("reasoning", "")
+            if not reasoning_val or reasoning_val == "No reasoning provided.":
+                logger.warning("[REASONING] Missing reasoning for single image=%s...", img_identity[:12])
 
-        return ui_output
+            # Store complete result in cache
+            store_cached_result(img_identity, mode, result)
+
+            single_output = parse_vlm_output(result, include_context=True)
+            meme_record = _build_meme_record(result, idx=1, path=p)
+
+            return AnalysisResponse({
+                "is_multi": False,
+                "memes_count": 1,
+                "memes": [meme_record],
+                "single_output": single_output,
+                "multi_html": "",
+                "result": result
+            })
+
+        # ── MULTI-MEME ANALYSIS (len > 1): INDEPENDENT PER-IMAGE PROCESSING ──
+        total_memes = len(paths)
+        logger.info("[ANALYSIS] Independent per-image multi-meme analysis started for %d memes", total_memes)
+        memes_list = []
+        cache_hits = 0
+
+        for idx, p in enumerate(paths, start=1):
+            # Compute content-based identity
+            img_identity = get_image_identity(p)
+            cached = get_cached_result(img_identity, mode)
+
+            if cached is not None:
+                # Cache HIT — reuse result with current ordering (deep copy already done)
+                cache_hits += 1
+                meme_record = _build_meme_record(cached, idx=idx, path=p)
+                memes_list.append(meme_record)
+
+                if progress is not None:
+                    progress(float(idx) / float(total_memes),
+                             desc=f"Reusing cached result for Meme {idx} of {total_memes}...")
+                logger.info("[ANALYSIS] Reusing cached result for Meme %d of %d", idx, total_memes)
+                continue
+
+            # Cache MISS — full analysis pipeline for this image
+            if progress is not None:
+                progress(float(idx - 1) / float(total_memes),
+                         desc=f"Analyzing Meme {idx} of {total_memes}...")
+
+            logger.info("[MULTI-MEME] Processing Meme %d of %d: %s", idx, total_memes, os.path.basename(p))
+
+            # Isolated Step A: Dedicated OCR for this meme ONLY
+            iso_ocr, _ = extract_text_ocr(p)
+            if iso_ocr:
+                logger.info("[MULTI-MEME] Meme %d OCR: %s", idx, iso_ocr[:100])
+
+            # Isolated Step B: Cultural retrieval for this meme ONLY
+            iso_ctx = ""
+            if mode == "cultural" and CULTURAL_RETRIEVER is not None:
+                search_text = iso_ocr if iso_ocr else os.path.basename(p)
+                iso_ctx = CULTURAL_RETRIEVER.retrieve_context(search_text)
+                if iso_ctx:
+                    logger.info("[MULTI-MEME] Meme %d Cultural Context retrieved: %s", idx, iso_ctx[:120])
+
+            # Isolated Step C: VLM inference strictly on this meme
+            res_single = VLM_ENGINE.infer(
+                p, mode=mode,
+                ocr_text=iso_ocr, retrieved_context=iso_ctx
+            )
+
+            # Isolated Step D: Cultural post-inference enrichment for this meme
+            _enrich_cultural_result(res_single, mode, iso_ctx)
+
+            # Log reasoning status
+            reasoning_val = res_single.get("reasoning", "")
+            if not reasoning_val or reasoning_val == "No reasoning provided.":
+                logger.warning("[REASONING] Missing reasoning for Meme %d image=%s...", idx, img_identity[:12])
+
+            # Store complete result in cache
+            store_cached_result(img_identity, mode, res_single)
+
+            # Build per-meme schema (no redundant 'confidence' field)
+            meme_record = _build_meme_record(res_single, idx=idx, path=p)
+            memes_list.append(meme_record)
+            logger.info("[MULTI-MEME] Completed Meme %d: %s", idx, meme_record["prediction"])
+
+        if progress is not None:
+            progress(1.0, desc=f"Completed analysis of {total_memes} memes.")
+
+        logger.info("[ANALYSIS] Multi-meme complete: %d total, %d cached, %d newly analyzed",
+                    total_memes, cache_hits, total_memes - cache_hits)
+
+        multi_result = {
+            "is_multi": True,
+            "memes_count": len(memes_list),
+            "memes": memes_list
+        }
+        multi_html = format_multi_meme_cards(multi_result, include_context=True)
+        single_output_fallback = parse_vlm_output(memes_list[0], include_context=True)
+
+        return AnalysisResponse({
+            "is_multi": True,
+            "memes_count": len(memes_list),
+            "memes": memes_list,
+            "single_output": single_output_fallback,
+            "multi_html": multi_html,
+            "result": multi_result
+        })
 
     except Exception as e:
         logger.error("[ANALYSIS] Exception type: %s", type(e).__name__)
         logger.error("[ANALYSIS] Exception message: %s", str(e))
         logger.exception("[ANALYSIS] Complete traceback:")
-        return "Error", "N/A", "N/A", "N/A", "N/A", f"An internal inference error occurred: {str(e)}"
+        err_tuple = ("Error", "N/A", "N/A", "N/A", "N/A", "N/A", f"An internal inference error occurred: {str(e)}")
+        return AnalysisResponse({
+            "is_multi": False, "memes_count": 0, "memes": [],
+            "single_output": err_tuple,
+            "multi_html": f"<div style='color:#EF4444;padding:16px;'>Error: {str(e)}</div>",
+            "error": True
+        })
+
 
 
 def main():
@@ -216,10 +413,13 @@ def main():
         print("Gradio is not installed. Please run: uv pip install gradio")
         sys.exit(0)
 
-    # Pre-initialize engine and retriever so the first request doesn't suffer cold-start delay
-    logger.info("Pre-warming VLM Engine and Cultural Retriever...")
-    init_engine()
-    init_cultural_retriever()
+    # Pre-initialize engine and retriever if pre-warming is enabled
+    if os.environ.get("PREWARM", "1") == "1":
+        logger.info("Pre-warming VLM Engine and Cultural Retriever...")
+        init_engine()
+        init_cultural_retriever()
+    else:
+        logger.info("Pre-warming skipped via PREWARM=0.")
 
     try:
         from app.ui_components import create_ui, CUSTOM_CSS, theme

@@ -3,3 +3,7 @@ generation:
   max_new_tokens: 256
   temperature: 0.1
   do_sample: false
+vision:
+  min_pixels: 200704
+  max_pixels: 401408
+
