@@ -85,3 +85,57 @@ class ReportGenerator:
             if col in metrics_df.columns:
                 metrics_df = metrics_df.drop(columns=[col])
         metrics_df.to_csv(self.tables_dir / "metrics_summary.csv", index=False)
+        return metrics
+
+    def generate_comparison_report(self, general_csv: str, cultural_csv: str):
+        """
+        Generates a side-by-side comparative report of General vs Cultural-Aware VLM modes.
+        """
+        if not Path(general_csv).exists() or not Path(cultural_csv).exists():
+            print(f"Missing predictions file: general={general_csv}, cultural={cultural_csv}")
+            return None
+
+        df_gen = pd.read_csv(general_csv)
+        df_cul = pd.read_csv(cultural_csv)
+
+        def get_eval_metrics(df):
+            valid = df.dropna(subset=["prediction", "ground_truth"])
+            if len(valid) == 0:
+                return {}
+            y_t = valid["ground_truth"].astype(int)
+            y_p = valid["prediction"].astype(int)
+            return {
+                "samples": len(valid),
+                "accuracy": round(accuracy_score(y_t, y_p), 4),
+                "precision": round(precision_score(y_t, y_p, zero_division=0), 4),
+                "recall": round(recall_score(y_t, y_p, zero_division=0), 4),
+                "macro_f1": round(f1_score(y_t, y_p, average="macro", zero_division=0), 4),
+                "weighted_f1": round(f1_score(y_t, y_p, average="weighted", zero_division=0), 4),
+            }
+
+        gen_metrics = get_eval_metrics(df_gen)
+        cul_metrics = get_eval_metrics(df_cul)
+
+        comparison = {
+            "general_mode": gen_metrics,
+            "cultural_mode": cul_metrics,
+            "delta": {
+                k: round(cul_metrics.get(k, 0) - gen_metrics.get(k, 0), 4)
+                for k in ["accuracy", "precision", "recall", "macro_f1", "weighted_f1"]
+                if k in gen_metrics and k in cul_metrics
+            }
+        }
+
+        self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.tables_dir.mkdir(parents=True, exist_ok=True)
+
+        with open(self.reports_dir / "comparison_report.json", "w") as f:
+            json.dump(comparison, f, indent=2)
+
+        comp_df = pd.DataFrame([
+            {"Metric": k, "General Mode": gen_metrics.get(k, "N/A"), "Cultural-Aware": cul_metrics.get(k, "N/A"), "Delta": comparison["delta"].get(k, "N/A")}
+            for k in ["accuracy", "precision", "recall", "macro_f1", "weighted_f1"]
+        ])
+        comp_df.to_csv(self.tables_dir / "general_vs_cultural_comparison.csv", index=False)
+        return comparison
+

@@ -38,6 +38,18 @@ class VLMEvaluator:
         y_true = []
         y_pred = []
         
+        mode = self.experiment_config.get("mode", "general")
+        cultural_retriever = None
+        if mode == "cultural":
+            try:
+                from src.cultural.context_retriever import CulturalRetriever
+                cultural_retriever = CulturalRetriever(
+                    "data/cultural/cultural_categories.json",
+                    "data/cultural/cultural_knowledge.json"
+                )
+            except Exception as e:
+                print(f"Warning: Could not initialize CulturalRetriever: {e}")
+
         for idx, row in df.iterrows():
             sample_id = str(row.get("Unnamed: 0", idx))
             ground_truth = row.get("is_humorous", None)
@@ -53,9 +65,20 @@ class VLMEvaluator:
             raw_response = None
             parsing_status = "SUCCESS"
             error_status = "NONE"
+            cultural_category = ""
+            cultural_dependency = ""
+            cultural_context_used = False
             
             try:
-                result = self.engine.infer(str(img_path))
+                retrieved_context = ""
+                ocr_text = str(row.get("text", row.get("OCR_text", "")))
+                if cultural_retriever is not None and ocr_text:
+                    retrieved_context = cultural_retriever.retrieve_context(ocr_text)
+
+                result = self.engine.infer(
+                    str(img_path), mode=mode,
+                    ocr_text=ocr_text, retrieved_context=retrieved_context
+                )
                 raw_response = result.get("raw_response", str(result))
                 if result.get("error"):
                     parsing_status = "FAILED"
@@ -63,6 +86,9 @@ class VLMEvaluator:
                     pred_bool = result.get("humorous")
                     prediction_val = 1 if pred_bool else 0
                     confidence = result.get("confidence")
+                    cultural_category = result.get("cultural_category", "")
+                    cultural_dependency = result.get("cultural_dependency", "")
+                    cultural_context_used = result.get("cultural_context_used", bool(retrieved_context))
             except Exception as e:
                 error_status = f"INFERENCE_ERROR: {str(e)}"
                 parsing_status = "FAILED"
@@ -75,14 +101,17 @@ class VLMEvaluator:
                 confidence=confidence,
                 raw_response=raw_response,
                 parsing_status=parsing_status,
-                error_status=error_status
+                error_status=error_status,
+                cultural_category=cultural_category,
+                cultural_dependency=cultural_dependency,
+                cultural_context_used=cultural_context_used
             )
             
             if pd.notna(ground_truth) and prediction_val is not None:
                 y_true.append(int(ground_truth))
                 y_pred.append(prediction_val)
                 
-            print(f"Processed {sample_id}: GT={ground_truth}, PRED={prediction_val}")
+            print(f"Processed {sample_id} ({mode} mode): GT={ground_truth}, PRED={prediction_val}, CONF={confidence}")
             
         if y_true and y_pred:
             metrics_dir = Path(self.experiment_config["results_dir"]) / "metrics"
