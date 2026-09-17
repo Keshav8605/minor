@@ -337,13 +337,22 @@ def create_ui(analyze_fn):
             with gr.Column(scale=42, elem_classes=["panel-card"]):
                 gr.Markdown("📥 MEME INPUT", elem_classes=["panel-title"])
                 
-                image_input = gr.Image(
-                    type="filepath", 
-                    label="Upload Meme", 
-                    height=240,
-                    elem_classes=["meme-dropzone"],
-                    show_label=False
-                )
+                with gr.Tabs():
+                    with gr.TabItem("🖼️ Single Meme"):
+                        single_image = gr.Image(
+                            type="filepath", 
+                            label="Upload Single Meme", 
+                            height=250,
+                            elem_classes=["meme-dropzone"],
+                            show_label=False
+                        )
+                    with gr.TabItem("📚 Multi-Meme / Comic Strip"):
+                        multi_images = gr.File(
+                            file_count="multiple",
+                            file_types=["image"],
+                            label="Upload Meme Images",
+                            elem_classes=["meme-dropzone"]
+                        )
                 
                 gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["panel-title"])
                 
@@ -356,9 +365,9 @@ def create_ui(analyze_fn):
                 
                 gr.Markdown(
                     "**General**  \n"
-                    "Standard VLM reasoning without explicit cultural context.  \n\n"
+                    "Standard multimodal VLM reasoning without external cultural context.  \n\n"
                     "**Cultural-Aware**  \n"
-                    "Uses relevant Indian cultural context during reasoning.",
+                    "Retrieves relevant Indian cultural knowledge, slang, and context during reasoning.",
                     elem_classes=["mode-explanation"]
                 )
                 
@@ -418,9 +427,23 @@ def create_ui(analyze_fn):
                     )
                 
         # ── CLICK ACTION BINDING ──
+        def _dispatch_analysis(single_path, multi_paths, mode):
+            if multi_paths and isinstance(multi_paths, list) and len(multi_paths) > 0:
+                return analyze_fn(multi_paths, mode)
+            if single_path:
+                return analyze_fn(single_path, mode)
+            return (
+                "Error",
+                "<span style='color:#EF4444;font-size:14px;'>No image provided</span>",
+                "N/A",
+                "N/A",
+                "N/A",
+                "Please upload a meme image in either the 'Single Meme' or 'Multi-Meme' tab before clicking Analyze."
+            )
+
         analyze_btn.click(
-            fn=analyze_fn,
-            inputs=[image_input, cultural_toggle],
+            fn=_dispatch_analysis,
+            inputs=[single_image, multi_images, cultural_toggle],
             outputs=[pred_out, conf_out, text_out, cat_out, dep_out, reason_out]
         )
         

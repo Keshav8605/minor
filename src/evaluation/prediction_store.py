@@ -19,12 +19,16 @@ class PredictionStore:
                     "ground_truth", 
                     "prediction", 
                     "confidence", 
+                    "cultural_category",
+                    "cultural_dependency",
+                    "cultural_context_used",
                     "raw_response", 
                     "parsing_status", 
                     "error_status"
                 ])
                 
-    def save_prediction(self, sample_id, image_path, ground_truth, prediction, confidence, raw_response, parsing_status, error_status):
+    def save_prediction(self, sample_id, image_path, ground_truth, prediction, confidence, raw_response, parsing_status, error_status,
+                        cultural_category="", cultural_dependency="", cultural_context_used=False):
         with self._lock:
             with open(self.predictions_file, "a", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
@@ -35,6 +39,9 @@ class PredictionStore:
                     ground_truth,
                     prediction,
                     confidence,
+                    cultural_category,
+                    cultural_dependency,
+                    cultural_context_used,
                     safe_raw,
                     parsing_status,
                     error_status

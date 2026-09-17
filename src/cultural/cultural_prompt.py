@@ -20,13 +20,13 @@ def build_prompt(image_path: str, ocr_text: str = "", retrieved_context: str = "
         "\nReturn a JSON object strictly matching this structure:\n"
         "{\n"
         '  "humorous": bool,\n'
-        '  "confidence": float,\n'
-        '  "cultural_category": "string (e.g., family, education, none)",\n'
+        '  "detected_text": "string (transcription of text found in meme)",\n'
+        '  "cultural_category": "string (e.g., family, education, cricket, bollywood, none)",\n'
         '  "cultural_dependency": "none, low, medium, or high",\n'
         '  "cultural_context_used": bool,\n'
-        '  "reason": "explanation of humor"\n'
+        '  "reason": "explanation of humor and cultural nuances"\n'
         "}\n\n"
-        "Output ONLY the JSON object."
+        "Output ONLY the JSON object. Do not include markdown codeblocks or other text."
     )
     
     messages = [

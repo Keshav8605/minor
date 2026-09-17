@@ -1,0 +1,13 @@
+dataset:
+  test_csv: "data/processed/test.csv"
+  image_dir: "Memotion 3/testImages/testImages"
+
+model:
+  config_path: "configs/model.yaml"
+
+experiment:
+  name: "cultural_aware_qwen2.5_vl"
+  mode: "cultural"
+  max_samples: 10
+  results_dir: "results/vlm_cultural"
+  seed: 42
