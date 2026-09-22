@@ -74,10 +74,13 @@ def init_engine():
         return False
 
 
+CONTEXT_BUILDER = None
+
+
 def init_cultural_retriever():
-    """Initialize the cultural context retriever (singleton)."""
-    global CULTURAL_RETRIEVER
-    if CULTURAL_RETRIEVER is not None:
+    """Initialize the cultural context builder (singleton)."""
+    global CONTEXT_BUILDER
+    if CONTEXT_BUILDER is not None:
         return True
 
     try:
@@ -85,18 +88,23 @@ def init_cultural_retriever():
         if os.path.exists(cultural_config_path):
             with open(cultural_config_path, "r") as f:
                 cultural_config = yaml.safe_load(f)
-            from src.cultural.context_retriever import CulturalRetriever
-            CULTURAL_RETRIEVER = CulturalRetriever(
-                cultural_config["categories_path"],
-                cultural_config["knowledge_path"]
+            from src.cultural.context_builder import CulturalContextBuilder
+            CONTEXT_BUILDER = CulturalContextBuilder(
+                categories_path=cultural_config["categories_path"],
+                knowledge_path=cultural_config["knowledge_path"],
+                drishtikon_path=cultural_config.get("drishtikon_path"),
+                drishtikon_enabled=cultural_config.get("drishtikon_enabled", False),
+                drishtikon_top_k=cultural_config.get("drishtikon_top_k", 3),
+                min_similarity_threshold=cultural_config.get("min_similarity_threshold", 0.15)
             )
-            logger.info("Cultural Retriever initialized successfully")
+            logger.info("Cultural Context Builder initialized successfully (DRISHTIKON enabled=%s)",
+                        cultural_config.get("drishtikon_enabled", False))
             return True
         else:
             logger.warning("Cultural config not found at %s", cultural_config_path)
             return False
     except Exception as e:
-        logger.error("Could not initialize Cultural Retriever: %s", e)
+        logger.error("Could not initialize Cultural Context Builder: %s", e)
         return False
 
 
@@ -145,19 +153,20 @@ def analyze_meme(image_paths, cultural_mode):
         mode = "cultural" if cultural_mode == "Cultural-Aware" else "general"
         ocr_text = ""
         retrieved_context = ""
+        cultural_sources = []
 
         logger.info("[ANALYSIS] OCR started")
         # Text reading is handled by multimodal VLM vision understanding
         logger.info("[ANALYSIS] OCR completed (integrated vision-language text detection)")
 
-        # For Cultural-Aware mode, use the cultural retriever
+        # For Cultural-Aware mode, use the ContextBuilder
         if mode == "cultural":
             init_cultural_retriever()
-            if CULTURAL_RETRIEVER is not None:
+            if CONTEXT_BUILDER is not None:
                 file_context = " ".join([os.path.basename(p) for p in paths])
-                retrieved_context = CULTURAL_RETRIEVER.retrieve_context(file_context)
-                logger.info("[ANALYSIS] Cultural context retrieved: %s",
-                           retrieved_context[:200] if retrieved_context else "none")
+                retrieved_context, cultural_sources, _ = CONTEXT_BUILDER.build_context(file_context)
+                logger.info("[ANALYSIS] Cultural context retrieved: %s (sources: %s)",
+                           retrieved_context[:200] if retrieved_context else "none", cultural_sources)
 
         logger.info("[ANALYSIS] Prompt construction started")
         # Prompt is constructed inside engine.infer()
@@ -167,23 +176,26 @@ def analyze_meme(image_paths, cultural_mode):
         if len(paths) == 1:
             result = VLM_ENGINE.infer(
                 paths[0], mode=mode,
-                ocr_text=ocr_text, retrieved_context=retrieved_context
+                ocr_text=ocr_text, retrieved_context=retrieved_context,
+                cultural_sources=cultural_sources
             )
         else:
             result = VLM_ENGINE.infer_multi(
                 paths, mode=mode,
-                ocr_text=ocr_text, retrieved_context=retrieved_context
+                ocr_text=ocr_text, retrieved_context=retrieved_context,
+                cultural_sources=cultural_sources
             )
 
         # For Cultural-Aware mode, if we got detected_text from VLM,
         # do a second cultural retrieval pass with actual OCR text
-        if mode == "cultural" and CULTURAL_RETRIEVER is not None:
+        if mode == "cultural" and CONTEXT_BUILDER is not None:
             detected = result.get("detected_text", "")
             if detected and detected != "No text detected in image":
-                better_context = CULTURAL_RETRIEVER.retrieve_context(detected)
+                better_context, ocr_sources, _ = CONTEXT_BUILDER.build_context(detected)
                 if better_context and not retrieved_context:
-                    logger.info("[ANALYSIS] Additional cultural context from OCR: %s",
-                               better_context[:200])
+                    logger.info("[ANALYSIS] Additional cultural context from OCR: %s (sources: %s)",
+                               better_context[:200], ocr_sources)
+                    result["cultural_sources"] = list(set(result.get("cultural_sources", []) + ocr_sources))
                     from src.cultural.category_detector import detect_categories
                     categories = detect_categories(detected)
                     if "none" not in categories:

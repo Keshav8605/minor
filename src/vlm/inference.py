@@ -207,7 +207,7 @@ class VLMInferenceEngine:
 
         return parsed, humor_prob, non_humor_prob
 
-    def _build_result(self, parsed, humor_prob, non_humor_prob, mode="general", images_count=1):
+    def _build_result(self, parsed, humor_prob, non_humor_prob, mode="general", images_count=1, cultural_sources=None):
         """
         Combines the parsed VLM output with logit-based probabilities
         into a structured result dictionary.
@@ -215,6 +215,7 @@ class VLMInferenceEngine:
         result = dict(parsed)
         result["mode"] = mode
         result["images_analyzed"] = images_count
+        result["cultural_sources"] = cultural_sources if cultural_sources is not None else []
 
         # Set logit-based confidence
         if humor_prob is not None and non_humor_prob is not None:
@@ -271,7 +272,8 @@ class VLMInferenceEngine:
         return result
 
     def infer(self, image_path: str, mode: str = "general",
-              ocr_text: str = "", retrieved_context: str = ""):
+              ocr_text: str = "", retrieved_context: str = "",
+              cultural_sources: list = None):
         """
         Runs inference on a single image.
 
@@ -279,7 +281,8 @@ class VLMInferenceEngine:
             image_path: Path to the meme image.
             mode: "general" or "cultural".
             ocr_text: Pre-extracted OCR text (if available).
-            retrieved_context: Cultural context string from CulturalRetriever.
+            retrieved_context: Cultural context string.
+            cultural_sources: List of sources used (e.g. ['PROJECT_JSON', 'DRISHTIKON']).
 
         Returns:
             dict: Structured result with genuine logit-based confidence.
@@ -298,10 +301,14 @@ class VLMInferenceEngine:
             messages = build_humor_analysis_prompt(str(path))
 
         parsed, humor_prob, non_humor_prob = self._run_generation(messages)
-        return self._build_result(parsed, humor_prob, non_humor_prob, mode=mode)
+        return self._build_result(
+            parsed, humor_prob, non_humor_prob,
+            mode=mode, cultural_sources=cultural_sources
+        )
 
     def infer_multi(self, image_paths: list, mode: str = "general",
-                    ocr_text: str = "", retrieved_context: str = ""):
+                    ocr_text: str = "", retrieved_context: str = "",
+                    cultural_sources: list = None):
         """
         Runs inference on multiple images as a combined set.
         Uses Qwen2.5-VL's native multi-image support.
@@ -311,6 +318,7 @@ class VLMInferenceEngine:
             mode: "general" or "cultural".
             ocr_text: Combined OCR text from all images.
             retrieved_context: Cultural context string.
+            cultural_sources: List of sources used.
 
         Returns:
             dict: Structured result for the combined analysis.
@@ -332,5 +340,23 @@ class VLMInferenceEngine:
         parsed, humor_prob, non_humor_prob = self._run_generation(messages)
         return self._build_result(
             parsed, humor_prob, non_humor_prob,
-            mode=mode, images_count=len(resolved_paths)
+            mode=mode, images_count=len(resolved_paths),
+            cultural_sources=cultural_sources
         )
+
+    @staticmethod
+    def to_evaluation_dict(result: dict, meme_id: str = "") -> dict:
+        """
+        Formats result into a standardized evaluation record for research benchmarking.
+        """
+        return {
+            "meme_id": meme_id,
+            "mode": result.get("mode", "general"),
+            "humor_prediction": "Humorous" if result.get("humorous") else "Not Humorous",
+            "model_probability": result.get("humor_probability"),
+            "cultural_category": result.get("cultural_category", "N/A"),
+            "cultural_dependency": result.get("cultural_dependency", "N/A"),
+            "cultural_sources": result.get("cultural_sources", []),
+            "retrieved_context": result.get("cultural_context", ""),
+        }
+
