@@ -162,12 +162,6 @@ def _enrich_cultural_result(result, mode, retrieved_context):
 
     better_context = CULTURAL_RETRIEVER.retrieve_context(detected)
     if better_context and not retrieved_context:
-        from src.cultural.category_detector import detect_categories
-        categories = detect_categories(detected)
-        if "none" not in categories:
-            result["cultural_category"] = " / ".join(
-                cat.replace("_", " ").title() for cat in categories
-            )
         if result.get("cultural_context") == "No significant cultural context detected":
             result["cultural_context"] = better_context.replace(
                 "EXTERNAL CULTURAL CONTEXT:\n", ""

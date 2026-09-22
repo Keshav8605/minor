@@ -1,33 +1,23 @@
 import unittest
-from src.cultural.category_detector import detect_categories
-from src.cultural.context_retriever import CulturalRetriever
 from pathlib import Path
+from src.cultural.context_retriever import CulturalRetriever
 
 class TestCulturalRetrieval(unittest.TestCase):
     def setUp(self):
-        cat_path = "data/cultural/cultural_categories.json"
-        kb_path = "data/cultural/cultural_knowledge.json"
-        
-        if Path(cat_path).exists() and Path(kb_path).exists():
-            self.retriever = CulturalRetriever(cat_path, kb_path)
+        chroma_path = "data/cultural/chroma_db"
+        if Path(chroma_path).exists():
+            self.retriever = CulturalRetriever(chroma_path=chroma_path)
         else:
             self.retriever = None
-            
-    def test_detect_category(self):
-        cats = detect_categories("I hate going to the office, my boss is mean.")
-        self.assertIn("workplace", cats)
-        
-        cats = detect_categories("Sharma ji ka beta got 99 percent in JEE.")
-        self.assertIn("family", cats)
-        self.assertIn("JEE/exams", cats)
-        
-        cats = detect_categories("Just eating an apple.")
-        self.assertIn("none", cats)
-        
-    def test_retrieval_string(self):
+
+    def test_semantic_retrieval(self):
         if not self.retriever:
-            self.skipTest("Knowledge files missing")
-            
-        context = self.retriever.retrieve_context("Dhoni hit a six in the IPL.")
+            self.skipTest("ChromaDB index missing")
+
+        context = self.retriever.retrieve_context("Dhoni hit a helicopter shot in the IPL.")
+        self.assertTrue(context.startswith("EXTERNAL CULTURAL CONTEXT:\n"))
         self.assertIn("CRICKET", context)
-        self.assertIn("Dhoni", context)
+
+        # Test threshold fallback for unrelated text
+        context_unrelated = self.retriever.retrieve_context("xyzabc12345 non-existent random string")
+        self.assertIn("No specific cultural reference detected", context_unrelated)
