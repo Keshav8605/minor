@@ -1,4 +1,5 @@
 import sys
+import os
 try:
     import gradio as gr
 except ImportError:
@@ -22,10 +23,7 @@ CUSTOM_CSS = """
     box-shadow: none !important;
 }
 
-/* Hide Gradio footer */
-footer {
-    display: none !important;
-}
+footer { display: none !important; }
 
 /* ──────────────────────────────────────────────
    HEADER SECTION
@@ -53,11 +51,8 @@ footer {
 /* ──────────────────────────────────────────────
    MAIN GRID LAYOUT
    ────────────────────────────────────────────── */
-.main-grid {
-    gap: 20px !important;
-}
+.main-grid { gap: 20px !important; }
 
-/* Left Input Card / Right Output Card panel styling */
 .panel-card {
     background-color: #12182A !important;
     border: 1px solid #29324A !important;
@@ -93,6 +88,14 @@ footer {
 /* ──────────────────────────────────────────────
    INNER RESULTS CARDS
    ────────────────────────────────────────────── */
+.result-block {
+    background-color: #0B1020 !important;
+    border: 1px solid #29324A !important;
+    border-radius: 14px !important;
+    padding: 20px !important;
+    margin-bottom: 24px !important;
+}
+
 .result-card {
     background-color: #171E31 !important;
     border: 1px solid #29324A !important;
@@ -103,9 +106,7 @@ footer {
     transition: all 0.2s ease !important;
 }
 
-.result-card:hover {
-    border-color: #38BDF8 !important;
-}
+.result-card:hover { border-color: #38BDF8 !important; }
 
 .card-label {
     font-size: 13px !important;
@@ -119,7 +120,6 @@ footer {
     gap: 6px !important;
 }
 
-/* Textarea / Input styling within result cards */
 .result-card textarea {
     background-color: transparent !important;
     border: none !important;
@@ -132,15 +132,12 @@ footer {
     width: 100% !important;
 }
 
-.result-card textarea:focus {
-    box-shadow: none !important;
-}
+.result-card textarea:focus { box-shadow: none !important; }
 
-/* Specific styling for Humor prediction text */
 .prediction-box textarea {
     font-size: 24px !important;
     font-weight: 700 !important;
-    color: #22C55E !important; /* Green for positive humor, adjusted on output */
+    color: #22C55E !important;
 }
 
 /* ──────────────────────────────────────────────
@@ -155,8 +152,24 @@ footer {
     transition: border-color 0.25s ease !important;
 }
 
-.meme-dropzone:hover {
-    border-color: #8B5CF6 !important;
+.meme-dropzone:hover { border-color: #8B5CF6 !important; }
+
+/* CSS Counter for Multi-Meme Upload Gallery */
+.multi-gallery { counter-reset: meme-counter; }
+.multi-gallery button.thumbnail-item::before, .multi-gallery .thumbnail-item::before {
+    counter-increment: meme-counter;
+    content: "MEME " counter(meme-counter);
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(139, 92, 246, 0.9);
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 6px;
+    z-index: 10;
+    pointer-events: none;
 }
 
 /* ──────────────────────────────────────────────
@@ -227,61 +240,16 @@ footer {
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35) !important;
 }
 
-#analyze-btn:active {
-    transform: translateY(1px) !important;
-}
+#analyze-btn:active { transform: translateY(1px) !important; }
 
 /* ──────────────────────────────────────────────
    GRID ROWS AND EQUAL WIDTHS
    ────────────────────────────────────────────── */
-.top-row, .middle-row {
-    gap: 16px !important;
-}
-
+.top-row, .middle-row { gap: 16px !important; }
 .top-row > *, .middle-row > * {
     flex: 1 !important;
     min-width: 0 !important;
     margin-bottom: 0 !important;
-}
-
-/* ──────────────────────────────────────────────
-   PROCESSING / LOADING STATE OVERRIDES
-   ────────────────────────────────────────────── */
-.pending {
-    background-color: rgba(18, 24, 42, 0.95) !important;
-    border-radius: 12px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    padding: 24px !important;
-    gap: 12px !important;
-}
-
-.pending .eta-bar, .pending .loading {
-    display: none !important;
-}
-
-/* Analyzing text */
-.pending::after {
-    content: "Analyzing meme..." !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    color: #AAB4C5 !important;
-    display: block !important;
-}
-
-/* Indeterminate progress bar track */
-.pending::before {
-    content: "" !important;
-    display: block !important;
-    width: 160px !important;
-    height: 4px !important;
-    background: #29324A !important;
-    border-radius: 999px !important;
-    position: relative !important;
-    overflow: hidden !important;
 }
 
 /* ──────────────────────────────────────────────
@@ -292,9 +260,7 @@ footer {
         width: calc(100% - 32px) !important;
         padding: 20px 16px !important;
     }
-    .main-grid {
-        flex-direction: column !important;
-    }
+    .main-grid { flex-direction: column !important; }
 }
 
 @media (max-width: 768px) {
@@ -310,6 +276,9 @@ footer {
         margin-bottom: 16px !important;
     }
 }
+
+/* FIX BACKGROUND LEAK: Hide Gradio's internal progress image */
+.progress-text { display: none !important; }
 """
 
 theme = gr.themes.Soft(
@@ -330,6 +299,9 @@ def create_ui(analyze_fn):
             gr.Markdown("# 🎭 Culturally Aware Humor Detection")
             gr.Markdown("AI-Powered Hindi/Hinglish Meme Analysis")
         
+        # State for single and multi meme results
+        current_results = gr.State([])
+        
         # ── MAIN LAYOUT GRID ──
         with gr.Row(elem_classes=["main-grid"]):
             
@@ -338,7 +310,7 @@ def create_ui(analyze_fn):
                 gr.Markdown("📥 MEME INPUT", elem_classes=["panel-title"])
                 
                 with gr.Tabs():
-                    with gr.TabItem("🖼️ Single Meme"):
+                    with gr.TabItem("🖼️ Single Meme") as tab_single:
                         single_image = gr.Image(
                             type="filepath", 
                             label="Upload Single Meme", 
@@ -346,14 +318,19 @@ def create_ui(analyze_fn):
                             elem_classes=["meme-dropzone"],
                             show_label=False
                         )
-                    with gr.TabItem("📚 Multi-Meme / Comic Strip"):
-                        multi_images = gr.File(
-                            file_count="multiple",
-                            file_types=["image"],
+                    with gr.TabItem("📚 Multi-Meme / Comic Strip") as tab_multi:
+                        multi_images = gr.Gallery(
                             label="Upload Meme Images",
-                            elem_classes=["meme-dropzone"]
+                            elem_classes=["meme-dropzone", "multi-gallery"],
+                            columns=2,
+                            type="filepath",
+                            allow_active_elements=False
                         )
                 
+                active_tab = gr.State("single")
+                tab_single.select(lambda: "single", outputs=active_tab)
+                tab_multi.select(lambda: "multi", outputs=active_tab)
+
                 gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["panel-title"])
                 
                 cultural_toggle = gr.Radio(
@@ -364,9 +341,9 @@ def create_ui(analyze_fn):
                 )
                 
                 gr.Markdown(
-                    "**General**  \n"
-                    "Standard multimodal VLM reasoning without external cultural context.  \n\n"
-                    "**Cultural-Aware**  \n"
+                    "**General**  \\n"
+                    "Standard multimodal VLM reasoning without external cultural context.  \\n\\n"
+                    "**Cultural-Aware**  \\n"
                     "Retrieves relevant Indian cultural knowledge, slang, and context during reasoning.",
                     elem_classes=["mode-explanation"]
                 )
@@ -376,75 +353,107 @@ def create_ui(analyze_fn):
             # ── RIGHT COLUMN: RESULTS PANEL (58%) ──
             with gr.Column(scale=58, elem_classes=["panel-card"]):
                 gr.Markdown("📊 ANALYSIS RESULTS", elem_classes=["panel-title"])
-                gr.Markdown("AI-generated insights from your meme", elem_classes=["results-subtitle"])
                 
-                # Row 1: Humor Prediction + Confidence Score
-                with gr.Row(elem_classes=["top-row"], equal_height=True):
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("🎯 HUMOR PREDICTION", elem_classes=["card-label"])
-                        pred_out = gr.Textbox(
-                            show_label=False, 
-                            interactive=False, 
-                            elem_classes=["prediction-box"]
-                        )
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("◉ CONFIDENCE SCORE", elem_classes=["card-label"])
-                        conf_out = gr.HTML(elem_classes=["confidence-display"])
+                status_box = gr.Markdown("Waiting for input...", elem_classes=["results-subtitle"])
                 
-                # Row 2: Detected Text (OCR)
-                with gr.Column(elem_classes=["result-card"]):
-                    gr.Markdown("📄 DETECTED TEXT (OCR)", elem_classes=["card-label"])
-                    text_out = gr.Textbox(
-                        show_label=False, 
-                        interactive=False, 
-                        lines=2
-                    )
-                
-                # Row 3: Cultural Context + Cultural Dependency
-                with gr.Row(elem_classes=["middle-row"], equal_height=True):
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["card-label"])
-                        cat_out = gr.Textbox(
-                            show_label=False, 
-                            interactive=False, 
-                            lines=2
-                        )
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("🔗 CULTURAL DEPENDENCY", elem_classes=["card-label"])
-                        dep_out = gr.Textbox(
-                            show_label=False, 
-                            interactive=False, 
-                            lines=2
-                        )
-                
-                # Row 4: AI Reasoning
-                with gr.Column(elem_classes=["result-card"]):
-                    gr.Markdown("🧠 AI REASONING", elem_classes=["card-label"])
-                    reason_out = gr.Textbox(
-                        show_label=False, 
-                        interactive=False, 
-                        lines=4
-                    )
+                @gr.render(inputs=[current_results])
+                def render_results(results):
+                    if not results:
+                        gr.Markdown("No results yet. Upload a meme and click Analyze.")
+                        return
+                    
+                    for res in results:
+                        meme_idx = res.get("index", 1)
+                        if res.get("is_multi", False):
+                            gr.Markdown(f"### MEME {meme_idx}")
+                            gr.Image(value=res.get("image_path"), height=150, interactive=False, show_label=False)
+                            
+                        with gr.Column(elem_classes=["result-block"]):
+                            # Row 1: Humor Prediction + Confidence Score
+                            with gr.Row(elem_classes=["top-row"], equal_height=True):
+                                with gr.Column(elem_classes=["result-card"]):
+                                    gr.Markdown("🎯 HUMOR PREDICTION", elem_classes=["card-label"])
+                                    gr.Textbox(value=res["prediction"], show_label=False, interactive=False, elem_classes=["prediction-box"])
+                                with gr.Column(elem_classes=["result-card"]):
+                                    gr.Markdown("◉ CONFIDENCE SCORE", elem_classes=["card-label"])
+                                    gr.HTML(value=res["confidence"], elem_classes=["confidence-display"])
+                            
+                            # Row 2: Detected Text (OCR)
+                            with gr.Column(elem_classes=["result-card"]):
+                                gr.Markdown("📄 DETECTED TEXT (OCR)", elem_classes=["card-label"])
+                                gr.Textbox(value=res["ocr"], show_label=False, interactive=False, lines=2)
+                            
+                            # Row 3: Cultural Context + Cultural Dependency
+                            with gr.Row(elem_classes=["middle-row"], equal_height=True):
+                                with gr.Column(elem_classes=["result-card"]):
+                                    gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["card-label"])
+                                    gr.Textbox(value=res["category"], show_label=False, interactive=False, lines=2)
+                                with gr.Column(elem_classes=["result-card"]):
+                                    gr.Markdown("🔗 CULTURAL DEPENDENCY", elem_classes=["card-label"])
+                                    gr.Textbox(value=res["dependency"], show_label=False, interactive=False, lines=2)
+                            
+                            # Row 4: AI Reasoning
+                            with gr.Column(elem_classes=["result-card"]):
+                                gr.Markdown("🧠 AI REASONING", elem_classes=["card-label"])
+                                gr.Textbox(value=res["reasoning"], show_label=False, interactive=False, lines=4)
                 
         # ── CLICK ACTION BINDING ──
-        def _dispatch_analysis(single_path, multi_paths, mode):
-            if multi_paths and isinstance(multi_paths, list) and len(multi_paths) > 0:
-                return analyze_fn(multi_paths, mode)
-            if single_path:
-                return analyze_fn(single_path, mode)
-            return (
-                "Error",
-                "<span style='color:#EF4444;font-size:14px;'>No image provided</span>",
-                "N/A",
-                "N/A",
-                "N/A",
-                "Please upload a meme image in either the 'Single Meme' or 'Multi-Meme' tab before clicking Analyze."
-            )
+        def process_analysis(single_path, multi_paths, mode, tab):
+            paths = []
+            is_multi = False
+            if tab == "multi" and multi_paths:
+                # Gallery returns a list of tuples (filepath, caption) or dicts or strings
+                for item in multi_paths:
+                    p = item[0] if isinstance(item, (tuple, list)) else (item.get("name") if isinstance(item, dict) else str(item))
+                    if p: paths.append(p)
+                is_multi = True
+            elif tab == "single" and single_path:
+                paths = [single_path]
+            
+            if not paths:
+                yield "Error: Please upload a meme image.", []
+                return
+            
+            results_list = []
+            total = len(paths)
+            
+            for i, p in enumerate(paths, 1):
+                if total > 1:
+                    yield f"Analyzing Meme {i} of {total}...", results_list
+                else:
+                    yield "Analyzing meme...", results_list
+                
+                try:
+                    out = analyze_fn(p, mode)
+                except Exception as e:
+                    out = ("Error", "N/A", "N/A", "N/A", "N/A", f"Error: {str(e)}")
+                
+                res_dict = {
+                    "index": i,
+                    "is_multi": is_multi,
+                    "image_path": p,
+                    "prediction": out[0],
+                    "confidence": out[1],
+                    "ocr": out[2],
+                    "category": out[3],
+                    "dependency": out[4],
+                    "reasoning": out[5]
+                }
+                results_list.append(res_dict)
+                
+                if total > 1:
+                    yield f"Meme {i} Complete", results_list
+            
+            if total > 1:
+                yield f"{total}/{total} Memes Analyzed", results_list
+            else:
+                yield "Analysis Complete", results_list
 
         analyze_btn.click(
-            fn=_dispatch_analysis,
-            inputs=[single_image, multi_images, cultural_toggle],
-            outputs=[pred_out, conf_out, text_out, cat_out, dep_out, reason_out]
+            fn=process_analysis,
+            inputs=[single_image, multi_images, cultural_toggle, active_tab],
+            outputs=[status_box, current_results],
+            show_progress="hidden"
         )
         
     return demo
