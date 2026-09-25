@@ -39,16 +39,23 @@ class VLMEvaluator:
         y_pred = []
         
         mode = self.experiment_config.get("mode", "general")
-        cultural_retriever = None
+        context_builder = None
         if mode == "cultural":
             try:
-                from src.cultural.context_retriever import CulturalRetriever
-                cultural_retriever = CulturalRetriever(
-                    "data/cultural/cultural_categories.json",
-                    "data/cultural/cultural_knowledge.json"
+                cultural_config_path = "configs/cultural.yaml"
+                with open(cultural_config_path, "r") as f:
+                    c_cfg = yaml.safe_load(f)
+                from src.cultural.context_builder import CulturalContextBuilder
+                context_builder = CulturalContextBuilder(
+                    categories_path=c_cfg["categories_path"],
+                    knowledge_path=c_cfg["knowledge_path"],
+                    drishtikon_path=c_cfg.get("drishtikon_path"),
+                    drishtikon_enabled=c_cfg.get("drishtikon_enabled", False),
+                    drishtikon_top_k=c_cfg.get("drishtikon_top_k", 3),
+                    min_similarity_threshold=c_cfg.get("min_similarity_threshold", 0.15)
                 )
             except Exception as e:
-                print(f"Warning: Could not initialize CulturalRetriever: {e}")
+                print(f"Warning: Could not initialize CulturalContextBuilder: {e}")
 
         for idx, row in df.iterrows():
             sample_id = str(row.get("Unnamed: 0", idx))
@@ -68,16 +75,18 @@ class VLMEvaluator:
             cultural_category = ""
             cultural_dependency = ""
             cultural_context_used = False
+            cultural_sources = []
             
             try:
                 retrieved_context = ""
-                ocr_text = str(row.get("text", row.get("OCR_text", "")))
-                if cultural_retriever is not None and ocr_text:
-                    retrieved_context = cultural_retriever.retrieve_context(ocr_text)
+                ocr_text = str(row.get("ocr", row.get("text", row.get("OCR_text", ""))))
+                if context_builder is not None and ocr_text:
+                    retrieved_context, cultural_sources, _ = context_builder.build_context(ocr_text)
 
                 result = self.engine.infer(
                     str(img_path), mode=mode,
-                    ocr_text=ocr_text, retrieved_context=retrieved_context
+                    ocr_text=ocr_text, retrieved_context=retrieved_context,
+                    cultural_sources=cultural_sources
                 )
                 raw_response = result.get("raw_response", str(result))
                 if result.get("error"):
@@ -88,7 +97,7 @@ class VLMEvaluator:
                     confidence = result.get("confidence")
                     cultural_category = result.get("cultural_category", "")
                     cultural_dependency = result.get("cultural_dependency", "")
-                    cultural_context_used = result.get("cultural_context_used", bool(retrieved_context))
+                    cultural_context_used = bool(cultural_sources)
             except Exception as e:
                 error_status = f"INFERENCE_ERROR: {str(e)}"
                 parsing_status = "FAILED"

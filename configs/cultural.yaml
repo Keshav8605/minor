@@ -4,8 +4,8 @@
 categories_path: "data/cultural/cultural_categories.json"
 knowledge_path: "data/cultural/cultural_knowledge.json"
 
-# DRISHTIKON External Cultural Dataset Configuration (Additive)
-drishtikon_enabled: false
+# DRISHTIKON External Cultural Dataset Configuration (Enabled)
+drishtikon_enabled: true
 drishtikon_path: "data/cultural/drishtikon/processed/drishtikon_knowledge.json"
 drishtikon_top_k: 3
 min_similarity_threshold: 0.15

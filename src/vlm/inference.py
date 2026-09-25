@@ -7,12 +7,14 @@ the softmax probabilities of 'true' vs 'false' tokens from the model's logits.
 This gives a genuine model-derived probability rather than a hallucinated number.
 """
 
+import time
 import yaml
 import json
 import logging
 import torch
 import torch.nn.functional as F
 from pathlib import Path
+from transformers import StoppingCriteria, StoppingCriteriaList
 from qwen_vl_utils import process_vision_info
 from src.vlm.model_loader import load_model_and_processor
 from src.vlm.prompts import (
@@ -23,6 +25,33 @@ from src.vlm.prompts import (
 from src.vlm.output_parser import parse_json_response
 
 logger = logging.getLogger(__name__)
+
+
+class DiagnosticStoppingCriteria(StoppingCriteria):
+    def __init__(self, start_time, timeout_seconds, initial_input_length):
+        self.start_time = start_time
+        self.timeout_seconds = timeout_seconds
+        self.initial_input_length = initial_input_length
+        self.last_log_time = start_time
+        self.tokens_generated = 0
+        self.timed_out = False
+
+    def __call__(self, input_ids, scores, **kwargs) -> bool:
+        self.tokens_generated = input_ids.shape[1] - self.initial_input_length
+        current_time = time.time()
+        
+        # Log progress every 30 seconds
+        if current_time - self.last_log_time > 30.0:
+            logger.info("Generation progress: %d tokens generated in %.1fs...", 
+                        self.tokens_generated, current_time - self.start_time)
+            self.last_log_time = current_time
+            
+        if (current_time - self.start_time) > self.timeout_seconds:
+            logger.warning("Generation TIMED OUT after %.1fs and %d tokens!", 
+                           current_time - self.start_time, self.tokens_generated)
+            self.timed_out = True
+            return True
+        return False
 
 
 class VLMInferenceEngine:
@@ -177,9 +206,21 @@ class VLMInferenceEngine:
         gen_params["return_dict_in_generate"] = True
         gen_params["output_scores"] = True
 
-        logger.info("[ANALYSIS] VLM inference started")
+        # Safety: Add timeout stopping criteria
+        # 600 seconds (10 minutes) should be plenty for 384 tokens even on CPU,
+        # but protects against indefinite hang/repetition loops.
+        initial_length = inputs.input_ids.shape[1]
+        start_time = time.time()
+        stopping_criteria = DiagnosticStoppingCriteria(start_time, timeout_seconds=600.0, initial_input_length=initial_length)
+        gen_params["stopping_criteria"] = StoppingCriteriaList([stopping_criteria])
+
+        logger.info("[ANALYSIS] VLM inference started (timeout=600s)")
         outputs = self.model.generate(**inputs, **gen_params)
-        logger.info("[ANALYSIS] VLM inference completed")
+        inference_time = time.time() - start_time
+        logger.info("[ANALYSIS] VLM inference completed in %.1fs", inference_time)
+
+        if stopping_criteria.timed_out:
+            logger.error("VLM Inference forcefully terminated due to timeout. Output may be truncated/malformed.")
 
         # Extract generated text
         generated_ids = outputs.sequences
@@ -190,6 +231,12 @@ class VLMInferenceEngine:
         output_text = self.processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
+        
+        gen_token_count = len(generated_ids_trimmed[0])
+        max_tokens = gen_params.get("max_new_tokens", -1)
+        hit_max = (gen_token_count >= max_tokens) if max_tokens > 0 else False
+        logger.info("Generation Diagnostics: %d tokens generated. Hit max_new_tokens: %s. Timed out: %s.", 
+                    gen_token_count, hit_max, stopping_criteria.timed_out)
 
         logger.info("VLM raw output: %s", output_text[:500])
 
