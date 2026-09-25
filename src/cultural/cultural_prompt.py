@@ -24,7 +24,7 @@ def build_prompt(image_path: str, ocr_text: str = "", retrieved_context: str = "
         '  "cultural_category": "string (e.g., family, education, cricket, bollywood, none)",\n'
         '  "cultural_dependency": "none, low, medium, or high",\n'
         '  "cultural_context_used": bool,\n'
-        '  "reason": "explanation of humor and cultural nuances"\n'
+        '  "reason": "Explain WHY the meme works as humor (2-5 sentences). Identify the specific humor mechanism (e.g. sarcasm, exaggeration, relatable situation) and explain how the visual, text, and cultural context interact to create it. If not humorous, explain why. Do not just describe the image."\n'
         "}\n\n"
         "Output ONLY the JSON object. Do not include markdown codeblocks or other text."
     )

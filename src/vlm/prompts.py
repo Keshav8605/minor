@@ -13,7 +13,7 @@ _GENERAL_JSON_SCHEMA = """{
   "humorous": bool,
   "detected_text": "all text visible in the image (Hindi, English, Hinglish)",
   "visual_description": "brief description of what the image shows",
-  "reason": "why the meme is or is not humorous"
+  "reason": "Explain WHY the meme works as humor (2-5 sentences). Identify the specific humor mechanism (e.g. sarcasm, exaggeration, relatable situation, visual-text mismatch) and explain the relationship between the image and text. If not humorous, explain why it lacks a comedic mechanism. Do not just describe the image."
 }"""
 
 _CULTURAL_JSON_SCHEMA = """{
@@ -23,7 +23,7 @@ _CULTURAL_JSON_SCHEMA = """{
   "cultural_category": "one of: family, education, college, JEE/exams, cricket, Bollywood, food, festivals, marriage/wedding, relationships, workplace, social_norms, religion, regional_culture, daily_life, hindi_slang, internet_culture, or none",
   "cultural_dependency": "low, medium, or high",
   "cultural_context": "explain what cultural knowledge is needed to understand this meme, or 'No significant cultural context' if none",
-  "reason": "why the meme is or is not humorous, referencing cultural context if relevant"
+  "reason": "Explain WHY the meme works as humor (2-5 sentences). Identify the specific humor mechanism (e.g. sarcasm, exaggeration, relatable situation) and explain how the visual, text, and cultural context interact to create the joke. If not humorous, explain why. Do not just describe the image."
 }"""
 
 
@@ -54,7 +54,7 @@ def build_humor_analysis_prompt(image_path: str):
         "- Informational/serious: conveys information, opinions, or emotional messages without comedic intent — classify as NOT humorous.\n"
         "- Emotional: expresses frustration, nostalgia, or sentiment — emotional content is NOT automatically humorous.\n\n"
         "An image being a 'meme format' does NOT automatically make it humorous. Evaluate actual comedic intent.\n\n"
-        "4. Explain your reasoning briefly.\n\n"
+        "4. Explain your reasoning (2-5 sentences). Focus on WHY the meme works as humor. Identify the specific humor mechanism (sarcasm, exaggeration, relatable situation, etc.) and explain the relationship between the image and text.\n\n"
         "Return a JSON object strictly matching this structure:\n"
         f"{_GENERAL_JSON_SCHEMA}\n\n"
         "Output ONLY the JSON object."
@@ -104,7 +104,7 @@ def build_cultural_analysis_prompt(image_path: str, ocr_text: str = "", retrieve
         "   - Sarcasm, relatable observation, or emotional/informational content alone is NOT humor.\n"
         "   - A cultural reference alone does NOT imply humor.\n"
         "   - Being a 'meme format' does not guarantee humor. Evaluate actual comedic intent.\n"
-        "4. Explain reasoning briefly, using supplied cultural context if applicable.\n\n"
+        "4. Explain reasoning (2-5 sentences). Focus on WHY the meme works as humor. Identify the specific humor mechanism (sarcasm, exaggeration, relatable situation, etc.) and explain how the visual, text, and cultural context interact.\n\n"
         "Return a JSON object strictly matching this structure:\n"
         f"{_CULTURAL_JSON_SCHEMA}\n\n"
         "Output ONLY the JSON object."
