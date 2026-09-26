@@ -27,7 +27,8 @@ _REQUIRED_FIELDS = {"humorous"}
 # All expected fields (optional ones have default fallbacks)
 _ALL_EXPECTED_FIELDS = {
     "humorous", "detected_text", "visual_description", "reason",
-    "cultural_category", "cultural_dependency", "cultural_context"
+    "cultural_category", "cultural_dependency", "cultural_context",
+    "humor_evidence", "non_humor_evidence"
 }
 
 

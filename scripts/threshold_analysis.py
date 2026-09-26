@@ -5,11 +5,11 @@ df = pd.read_csv("results/evaluation_1790249336/comparison_results.csv")
 
 def evaluate_threshold(df, threshold, mode="general"):
     if mode == "general":
-        y_true = df["ground_truth"].apply(lambda x: 1 if x == "Humorous" else 0)
-        y_prob = df["general_prob"]
+        y_true = df["ground_truth"].astype(int)
+        y_prob = df["general_humor_probability"]
     else:
-        y_true = df["ground_truth"].apply(lambda x: 1 if x == "Humorous" else 0)
-        y_prob = df["cultural_prob"]
+        y_true = df["ground_truth"].astype(int)
+        y_prob = df["cultural_humor_probability"]
 
     y_pred = (y_prob >= threshold).astype(int)
 

@@ -128,10 +128,11 @@ class VLMInferenceEngine:
             humor_token_pos = None
             generated_token_list = generated_ids_trimmed[0].tolist() if len(generated_ids_trimmed) > 0 else []
 
-            for pos, token_id in enumerate(generated_token_list):
+            for pos in range(len(generated_token_list)-1, -1, -1):
+                token_id = generated_token_list[pos]
                 if token_id in self._true_token_ids or token_id in self._false_token_ids:
                     humor_token_pos = pos
-                    break  # First occurrence is for the 'humorous' field
+                    break  # Last occurrence is for the 'humorous' field at the end of JSON
 
             if humor_token_pos is None:
                 logger.warning("Could not find true/false token in generated sequence")

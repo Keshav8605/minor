@@ -5,30 +5,42 @@ def build_prompt(image_path: str, ocr_text: str = "", retrieved_context: str = "
     Mode B: Culturally contextualized VLM.
     """
     system_prompt = (
-        "You are an expert AI assistant specialized in analyzing multimodal humor in "
-        "codemixed Hindi-English memes. Output your analysis ONLY as a valid JSON object."
+        "You are a strict binary humor classifier for memes. "
+        "Output your analysis ONLY as a valid JSON object. "
+        "Your DEFAULT classification is NOT HUMOROUS. "
+        "Only classify as humorous when you find clear, specific evidence of an actual joke or comedic mechanism. "
+        "Cultural context helps UNDERSTAND memes, but cultural relevance does NOT equal humor."
     )
-    
+
     user_content = "Analyze the following meme.\n"
     if ocr_text:
         user_content += f"Detected Text (OCR): {ocr_text}\n"
-        
+
     if mode == "B" and retrieved_context:
-        user_content += f"\n{retrieved_context}\n\nUse this external context to inform your analysis if relevant.\n"
-        
+        user_content += (
+            f"\n{retrieved_context}\n\n"
+            "WARNING: This cultural context is for UNDERSTANDING the meme, NOT evidence of humor. "
+            "A cultural reference does NOT make a meme humorous. "
+            "Use this context only if it helps explain an actual joke.\n"
+        )
+
     user_content += (
-        "\nReturn a JSON object strictly matching this structure:\n"
+        "\nCRITICAL: Before setting humorous=true, answer: 'What exactly is the joke?' "
+        "If you cannot state the joke in one sentence, set humorous=false.\n\n"
+        "Return a JSON object strictly matching this structure:\n"
         "{\n"
-        '  "humorous": bool,\n'
         '  "detected_text": "string (transcription of text found in meme)",\n'
         '  "cultural_category": "string (e.g., family, education, cricket, bollywood, none)",\n'
-        '  "cultural_dependency": "none, low, medium, or high",\n'
+        '  "cultural_dependency": "none, low, medium, or high — high ONLY if the joke itself requires cultural knowledge",\n'
         '  "cultural_context_used": bool,\n'
-        '  "reason": "Explain WHY the meme works as humor (2-5 sentences). Identify the specific humor mechanism (e.g. sarcasm, exaggeration, relatable situation) and explain how the visual, text, and cultural context interact to create it. If not humorous, explain why. Do not just describe the image."\n'
+        '  "humor_evidence": "Name the SPECIFIC comedic mechanism and cite evidence. If none found, write No clear comedic mechanism found.",\n'
+        '  "non_humor_evidence": "Is this motivational, informational, serious, emotional? List indicators.",\n'
+        '  "reason": "What exactly is the joke? If you cannot state it, classify as NOT humorous.",\n'
+        '  "humorous": bool\n'
         "}\n\n"
         "Output ONLY the JSON object. Do not include markdown codeblocks or other text."
     )
-    
+
     messages = [
         {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
         {
@@ -40,3 +52,4 @@ def build_prompt(image_path: str, ocr_text: str = "", retrieved_context: str = "
         }
     ]
     return messages
+
