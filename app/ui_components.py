@@ -1,992 +1,642 @@
-import os
 import sys
-import base64
-import logging
+import os
+import html as html_mod
 
 try:
     import gradio as gr
 except ImportError:
     gr = None
 
-logger = logging.getLogger("ui_components")
-
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOM CSS
+# ═══════════════════════════════════════════════════════════════════════════════
 CUSTOM_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* ──────────────────────────────────────────────
-   BASE CONTAINER AND RESET
-   ────────────────────────────────────────────── */
-*, *::before, *::after {
-    box-sizing: border-box !important;
-}
-
-body, html {
-    margin: 0 !important;
-    padding: 0 !important;
-    background-color: #0B1020 !important;
-    overflow-x: hidden !important;
-}
-
+/* ── Base ── */
 .gradio-container {
     font-family: 'Inter', sans-serif !important;
     background-color: #0B1020 !important;
     color: #F4F6FA !important;
-    width: 100% !important;
-    max-width: 1440px !important;
+    width: calc(100% - 64px) !important;
+    max-width: 1500px !important;
     margin: 0 auto !important;
-    padding: 16px 20px !important;
+    padding: 24px 32px !important;
     border: none !important;
     box-shadow: none !important;
-    overflow-x: hidden !important;
 }
+footer { display: none !important; }
 
-/* Hide Gradio footer */
-footer {
-    display: none !important;
-}
+/* ── Header ── */
+.header-section { margin-bottom: 20px !important; padding-bottom: 12px !important; border-bottom: 1px solid #29324A !important; }
+.header-section h1 { font-size: 32px !important; font-weight: 700 !important; color: #F4F6FA !important; margin: 0 0 6px 0 !important; letter-spacing: -0.02em !important; }
+.header-section p { color: #AAB4C5 !important; font-size: 14px !important; margin: 0 !important; }
 
-/* ──────────────────────────────────────────────
-   HEADER SECTION
-   ────────────────────────────────────────────── */
-.header-section {
-    margin-bottom: 16px !important;
-    padding-bottom: 10px !important;
-    border-bottom: 1px solid #222B42 !important;
-}
-
-.header-section h1 {
-    font-size: 26px !important;
-    font-weight: 700 !important;
-    color: #F4F6FA !important;
-    margin: 0 0 4px 0 !important;
-    letter-spacing: -0.02em !important;
-}
-
-.header-section p {
-    color: #AAB4C5 !important;
-    font-size: 13px !important;
-    margin: 0 !important;
-}
-
-/* ──────────────────────────────────────────────
-   MAIN GRID LAYOUT - RESPONSIVE
-   ────────────────────────────────────────────── */
-.main-grid {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    gap: 16px !important;
-    width: 100% !important;
-}
-
-/* Left Input Card / Right Output Card panel styling */
+/* ── Main Grid / Panels ── */
+.main-grid { gap: 20px !important; }
 .panel-card {
     background-color: #12182A !important;
-    border: 1px solid #222B42 !important;
-    border-radius: 14px !important;
-    padding: 18px 20px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid #29324A !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
 }
-
-/* Default Desktop Column split */
-.input-panel {
-    flex: 0 0 calc(42% - 8px) !important;
-    min-width: 320px !important;
-}
-
-.results-panel {
-    flex: 0 0 calc(58% - 8px) !important;
-    min-width: 360px !important;
-}
-
-/* ──────────────────────────────────────────────
-   TYPOGRAPHY & HEADINGS
-   ────────────────────────────────────────────── */
 .panel-title {
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    color: #F4F6FA !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    margin-bottom: 14px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    border-bottom: 1px solid #222B42 !important;
-    padding-bottom: 6px !important;
+    font-size: 18px !important; font-weight: 600 !important; color: #F4F6FA !important;
+    text-transform: uppercase !important; letter-spacing: 0.05em !important;
+    margin-bottom: 18px !important; display: flex !important; align-items: center !important;
+    gap: 8px !important; border-bottom: 1px solid #29324A !important; padding-bottom: 8px !important;
 }
 
-.results-subtitle {
-    font-size: 13px !important;
-    color: #AAB4C5 !important;
-    margin-top: -6px !important;
-    margin-bottom: 12px !important;
-}
-
-/* ──────────────────────────────────────────────
-   INNER RESULTS CARDS
-   ────────────────────────────────────────────── */
-.result-card {
-    background-color: #171E31 !important;
-    border: 1px solid #222B42 !important;
-    border-radius: 10px !important;
-    padding: 12px 16px !important;
-    margin-bottom: 10px !important;
-    height: auto !important;
-    transition: border-color 0.2s ease !important;
-}
-
-.result-card:hover {
-    border-color: #38BDF8 !important;
-}
-
-.card-label {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    color: #AAB4C5 !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-    margin-bottom: 6px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 5px !important;
-}
-
-/* Textarea / Input styling within result cards */
-.result-card textarea {
-    background-color: transparent !important;
-    border: none !important;
-    color: #F4F6FA !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 14px !important;
-    line-height: 1.45 !important;
-    padding: 0 !important;
-    resize: none !important;
-    width: 100% !important;
-}
-
-.result-card textarea:focus {
-    box-shadow: none !important;
-}
-
-/* Specific styling for Humor prediction text */
-.prediction-box textarea {
-    font-size: 22px !important;
-    font-weight: 700 !important;
-    color: #22C55E !important;
-}
-
-/* ──────────────────────────────────────────────
-   IMAGE UPLOAD COMPONENT (SINGLE & MULTI)
-   ────────────────────────────────────────────── */
+/* ── Upload ── */
 .meme-dropzone {
-    border: 1px dashed #29324A !important;
-    background-color: #171E31 !important;
-    border-radius: 10px !important;
-    overflow: hidden !important;
-    margin-bottom: 14px !important;
-    transition: border-color 0.25s ease !important;
+    border: 1px dashed #29324A !important; background-color: #171E31 !important;
+    border-radius: 12px !important; overflow: hidden !important;
+    margin-bottom: 20px !important; transition: border-color 0.25s ease !important;
 }
+.meme-dropzone:hover { border-color: #8B5CF6 !important; }
 
-.meme-dropzone:hover {
-    border-color: #8B5CF6 !important;
-}
+/* ── Multi-Gallery: compact horizontal single-row ── */
+.multi-gallery { counter-reset: meme-counter !important; }
 
-/* Single Meme Dropzone & Aspect-Ratio-Preserving Image Preview */
-.single-meme-dropzone {
-    min-height: 220px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-}
-
-.single-meme-dropzone .image-container,
-.single-meme-dropzone .image-frame,
-.single-meme-dropzone [data-testid="image"],
-.single-meme-dropzone .wrap {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    min-height: 200px !important;
-    max-height: 320px !important;
-    background: transparent !important;
-}
-
-.single-meme-dropzone img {
-    max-width: 100% !important;
-    max-height: 280px !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    border-radius: 6px !important;
-    display: block !important;
-    margin: 0 auto !important;
-}
-
-/* ──────────────────────────────────────────────
-   UNIFIED MULTI-MEME GALLERY & PREVIEW CARDS
-   ────────────────────────────────────────────── */
-.multi-preview-section {
-    background: #171E31 !important;
-    border: 1px solid #222B42 !important;
-    border-radius: 10px !important;
-    padding: 14px 16px !important;
-    margin-top: 4px !important;
-    margin-bottom: 14px !important;
-}
-
-.multi-preview-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    margin-bottom: 12px !important;
-    padding-bottom: 8px !important;
-    border-bottom: 1px solid #222B42 !important;
-}
-
-.multi-preview-title {
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    color: #F4F6FA !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-}
-
-.multi-order-tag {
-    font-size: 11px !important;
-    font-weight: 400 !important;
-    color: #8E9BAE !important;
-}
-
-.multi-preview-count {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    color: #8B5CF6 !important;
-    background: rgba(139, 92, 246, 0.12) !important;
-    padding: 2px 8px !important;
-    border-radius: 4px !important;
-    border: 1px solid rgba(139, 92, 246, 0.25) !important;
-}
-
-.multi-preview-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 12px !important;
-    width: 100% !important;
-}
-
-@media (max-width: 900px) {
-    .multi-preview-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-}
-
-@media (max-width: 500px) {
-    .multi-preview-grid {
-        grid-template-columns: 1fr !important;
-    }
-}
-
-.multi-image-card {
-    background: #12182A !important;
-    border: 1px solid #222B42 !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    transition: all 0.2s ease !important;
-}
-
-.multi-image-card:hover {
-    border-color: #38BDF8 !important;
-    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15) !important;
-}
-
-.multi-card-badge-row {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 6px 8px !important;
-    background: #171E31 !important;
-    border-bottom: 1px solid #222B42 !important;
-}
-
-.multi-card-badge {
-    background: linear-gradient(135deg, #7C3AED, #8B5CF6) !important;
-    color: #FFFFFF !important;
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    padding: 2px 7px !important;
-    border-radius: 4px !important;
-    letter-spacing: 0.5px !important;
-    text-transform: uppercase !important;
-}
-
-.multi-card-del-btn {
-    background: transparent !important;
-    border: none !important;
-    color: #AAB4C5 !important;
-    font-size: 16px !important;
-    line-height: 1 !important;
-    cursor: pointer !important;
-    padding: 0 4px !important;
-    border-radius: 4px !important;
-    transition: all 0.15s ease !important;
-}
-
-.multi-card-del-btn:hover {
-    color: #EF4444 !important;
-    background: rgba(239, 68, 68, 0.15) !important;
-}
-
-.multi-card-thumb-wrap {
-    width: 100% !important;
-    height: 110px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: #0B1020 !important;
-    overflow: hidden !important;
-    padding: 4px !important;
-}
-
-.multi-card-thumb {
-    max-width: 100% !important;
-    max-height: 100% !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    border-radius: 4px !important;
-    display: block !important;
-}
-
-.multi-card-info-box {
-    padding: 6px 8px !important;
-    border-top: 1px solid #222B42 !important;
-    background: #12182A !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 3px !important;
-}
-
-.multi-card-filename {
-    font-size: 11px !important;
-    color: #E2E8F0 !important;
-    font-weight: 500 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    width: 100% !important;
-}
-
-.multi-card-meta-row {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-}
-
-.multi-card-filesize {
-    font-size: 10px !important;
-    color: #8E9BAE !important;
-}
-
-/* Hide duplicate redundant internal file list inside the Gradio File component */
-#multi-file-uploader .file-preview-holder,
-#multi-file-uploader ul,
-#multi-file-uploader table {
-    display: none !important;
-}
-
-/* ──────────────────────────────────────────────
-   SEGMENTED CONTROL (Cultural Toggle)
-   ────────────────────────────────────────────── */
-.segmented-control {
-    background-color: #171E31 !important;
-    border: 1px solid #222B42 !important;
-    border-radius: 8px !important;
-    padding: 3px !important;
-    margin-bottom: 12px !important;
-}
-
-.segmented-control label {
-    flex: 1 !important;
-    text-align: center !important;
-    padding: 8px 12px !important;
-    color: #AAB4C5 !important;
-    font-weight: 500 !important;
-    font-size: 13px !important;
-    cursor: pointer !important;
-    border-radius: 6px !important;
-    transition: all 0.2s ease !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-}
-
-.segmented-control label:has(input[type="radio"]:checked) {
-    background-color: rgba(139, 92, 246, 0.2) !important;
-    color: #F4F6FA !important;
-    border: 1px solid rgba(139, 92, 246, 0.4) !important;
-}
-
-.mode-explanation {
-    font-size: 12px !important;
-    color: #8E9BAE !important;
-    line-height: 1.4 !important;
-    margin-bottom: 14px !important;
-}
-
-.mode-explanation strong {
-    color: #D1D5DB !important;
-    font-weight: 600 !important;
-}
-
-/* ──────────────────────────────────────────────
-   ANALYZE BUTTON
-   ────────────────────────────────────────────── */
-#analyze-btn {
-    background: linear-gradient(135deg, #7C3AED, #8B5CF6) !important;
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-    font-size: 15px !important;
-    height: 46px !important;
-    border: none !important;
-    border-radius: 8px !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    width: 100% !important;
-    margin-top: 6px !important;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25) !important;
-}
-
-#analyze-btn:hover {
-    background: linear-gradient(135deg, #6D28D9, #7C3AED) !important;
-    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4) !important;
-}
-
-#analyze-btn:active {
-    transform: translateY(1px) !important;
-}
-
-/* ──────────────────────────────────────────────
-   GRID ROWS AND EQUAL WIDTHS
-   ────────────────────────────────────────────── */
-.sub-row {
+.multi-gallery .grid-wrap,
+.multi-gallery .grid-container {
     display: flex !important;
     flex-direction: row !important;
-    gap: 12px !important;
-    margin-bottom: 10px !important;
-}
-
-.sub-row > * {
-    flex: 1 !important;
-    min-width: 0 !important;
-    margin-bottom: 0 !important;
-}
-
-/* Multi-meme responsive styling */
-.multi-cards-container {
-    width: 100% !important;
-}
-.multi-meme-section {
-    background: rgba(17, 22, 37, 0.6) !important;
-    border: 1px solid #1E2640 !important;
-    border-radius: 10px !important;
-    padding: 16px !important;
-}
-
-/* ──────────────────────────────────────────────
-   PROCESSING / LOADING STATE
-   ────────────────────────────────────────────── */
-.pending {
-    background-color: rgba(18, 24, 42, 0.95) !important;
-    border-radius: 10px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    padding: 20px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
     gap: 10px !important;
+    padding: 10px 8px !important;
+    align-items: flex-start !important;
 }
 
-.pending .eta-bar, .pending .loading {
-    display: none !important;
+.multi-gallery .thumbnail-item,
+.multi-gallery button.thumbnail-item {
+    flex: 0 0 auto !important;
+    width: 90px !important;
+    height: 90px !important;
+    position: relative !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    border: 1px solid #29324A !important;
 }
 
-.pending::after {
-    content: "Processing meme analysis..." !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    color: #AAB4C5 !important;
-    display: block !important;
+.multi-gallery .thumbnail-item img,
+.multi-gallery button.thumbnail-item img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
 }
 
-/* ──────────────────────────────────────────────
-   RESPONSIVENESS (Media Queries)
-   ────────────────────────────────────────────── */
-@media (max-width: 1080px) {
-    .main-grid {
-        flex-direction: column !important;
-    }
-    .input-panel, .results-panel {
-        flex: 1 1 100% !important;
-        width: 100% !important;
-        max-width: 100% !important;
-    }
+/* Badge at BOTTOM-LEFT to avoid Gradio delete-button overlap */
+.multi-gallery .thumbnail-item::after,
+.multi-gallery button.thumbnail-item::after {
+    counter-increment: meme-counter;
+    content: "MEME " counter(meme-counter);
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    background: rgba(139, 92, 246, 0.92);
+    color: white;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    z-index: 10;
+    pointer-events: none;
+    letter-spacing: 0.03em;
+    line-height: 1;
 }
 
+/* ── Segmented Control ── */
+.segmented-control {
+    background-color: #171E31 !important; border: 1px solid #29324A !important;
+    border-radius: 10px !important; padding: 4px !important; margin-bottom: 16px !important;
+}
+.segmented-control label {
+    flex: 1 !important; text-align: center !important; padding: 10px 16px !important;
+    color: #AAB4C5 !important; font-weight: 500 !important; font-size: 14px !important;
+    cursor: pointer !important; border-radius: 8px !important;
+    transition: all 0.2s ease !important; border: 1px solid transparent !important;
+    background: transparent !important;
+}
+.segmented-control label:has(input[type="radio"]:checked) {
+    background-color: rgba(139, 92, 246, 0.15) !important;
+    color: #F4F6FA !important; border: 1px solid rgba(139, 92, 246, 0.35) !important;
+}
+.mode-explanation { font-size: 13px !important; color: #AAB4C5 !important; line-height: 1.5 !important; margin-bottom: 20px !important; }
+.mode-explanation strong { color: #F4F6FA !important; font-weight: 600 !important; display: inline-block !important; margin-bottom: 2px !important; }
+
+/* ── Analyze Button ── */
+#analyze-btn {
+    background: linear-gradient(135deg, #7C3AED, #8B5CF6) !important;
+    color: #FFFFFF !important; font-weight: 600 !important; font-size: 16px !important;
+    height: 52px !important; border: none !important; border-radius: 10px !important;
+    cursor: pointer !important; transition: all 0.2s ease !important;
+    width: 100% !important; margin-top: 10px !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2) !important;
+}
+#analyze-btn:hover { background: linear-gradient(135deg, #6D28D9, #7C3AED) !important; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35) !important; }
+#analyze-btn:active { transform: translateY(1px) !important; }
+
+/* ── Focused Viewer ── */
+.focused-viewer {
+    background-color: #171E31 !important; border: 1px solid #29324A !important;
+    border-radius: 12px !important; padding: 16px !important;
+}
+.focused-viewer img { border-radius: 8px !important; }
+.nav-btn {
+    background-color: #171E31 !important; border: 1px solid #29324A !important;
+    color: #F4F6FA !important; border-radius: 8px !important;
+}
+.nav-btn:hover { border-color: #8B5CF6 !important; }
+.back-btn {
+    background-color: transparent !important; border: 1px solid #29324A !important;
+    color: #AAB4C5 !important; border-radius: 8px !important;
+}
+.back-btn:hover { border-color: #8B5CF6 !important; color: #F4F6FA !important; }
+
+/* ── Responsiveness ── */
+@media (max-width: 1024px) {
+    .gradio-container { width: calc(100% - 32px) !important; padding: 20px 16px !important; }
+    .main-grid { flex-direction: column !important; }
+}
 @media (max-width: 768px) {
-    .gradio-container {
-        padding: 12px 10px !important;
-    }
-    .panel-card {
-        padding: 14px !important;
-    }
-    .header-section h1 {
-        font-size: 22px !important;
-    }
-    .sub-row {
-        flex-direction: column !important;
-        gap: 8px !important;
-    }
-    .sub-row > * {
-        margin-bottom: 0 !important;
-    }
-    .multi-meme-section {
-        padding: 12px 10px !important;
-    }
-    .multi-meme-section [style*="grid-template-columns"] {
-        grid-template-columns: 1fr !important;
-    }
+    .gradio-container { width: 100% !important; padding: 16px 12px !important; }
 }
+
+/* ── FIX: Confidence background-image leak ── */
+.progress-text { display: none !important; }
+
+/* ═══════════════════════════════════════════════
+   RESULT CARDS  (rendered server-side as HTML)
+   ═══════════════════════════════════════════════ */
+.meme-result-block {
+    background-color: #0F1525; border: 1px solid #29324A;
+    border-radius: 14px; padding: 20px; margin-bottom: 20px;
+}
+.meme-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #29324A;
+}
+.meme-badge {
+    background: linear-gradient(135deg, #7C3AED, #8B5CF6);
+    color: #fff; font-size: 12px; font-weight: 700;
+    padding: 4px 12px; border-radius: 6px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+}
+.meme-thumb {
+    width: 50px; height: 50px; border-radius: 6px;
+    object-fit: cover; border: 1px solid #29324A;
+}
+.card-row { display: flex; gap: 16px; margin-bottom: 16px; }
+.card-row > .r-card { flex: 1; min-width: 0; }
+.r-card {
+    background-color: #171E31; border: 1px solid #29324A;
+    border-radius: 12px; padding: 16px 20px;
+    transition: border-color 0.2s ease;
+}
+.r-card:hover { border-color: #38BDF8; }
+.r-card-label {
+    font-size: 13px; font-weight: 600; color: #AAB4C5;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+.r-card-value {
+    color: #F4F6FA; font-family: 'Inter', sans-serif;
+    font-size: 15px; line-height: 1.55;
+    white-space: pre-wrap; word-break: break-word;
+}
+.r-card-value.prediction { font-size: 22px; font-weight: 700; }
+.r-card-value.placeholder { color: #6B7A90; font-style: italic; }
+.r-card-fullwidth { margin-bottom: 16px; }
+.status-text { font-size: 14px; color: #AAB4C5; padding: 8px 0 12px 0; }
 """
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# THEME
+# ═══════════════════════════════════════════════════════════════════════════════
 theme = gr.themes.Soft(
     primary_hue="purple",
     secondary_hue="pink",
     neutral_hue="slate",
 )
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PLACEHOLDER CONSTANTS
+# ═══════════════════════════════════════════════════════════════════════════════
+_PLACEHOLDER_CONF = "<span style='color:#6B7A90;font-size:15px;font-style:italic;'>—</span>"
+_PROCESSING_CONF = "<span style='color:#AAB4C5;font-size:14px;font-style:italic;'>Processing…</span>"
 
-def _extract_file_path(item):
-    """Safely extracts a valid filesystem path string from various Gradio input types."""
-    if not item:
-        return None
-    if isinstance(item, str):
-        return item.strip()
-    if isinstance(item, tuple) and len(item) > 0:
-        return _extract_file_path(item[0])
+EMPTY_RESULT = {
+    "prediction": "—", "confidence": _PLACEHOLDER_CONF,
+    "ocr": "Awaiting image", "category": "Awaiting analysis",
+    "dependency": "—", "reasoning": "Awaiting analysis",
+    "index": 1, "is_multi": False, "image_path": "",
+    "_placeholder": True,
+}
+
+PROCESSING_RESULT = {
+    "prediction": "Analyzing…", "confidence": _PROCESSING_CONF,
+    "ocr": "Extracting text…", "category": "Retrieving context…",
+    "dependency": "Analyzing…", "reasoning": "Generating reasoning…",
+    "index": 1, "is_multi": False, "image_path": "",
+    "_placeholder": True,
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HTML HELPERS
+# ═══════════════════════════════════════════════════════════════════════════════
+def _escape(text):
+    """HTML-escape safely."""
+    if text is None:
+        return ""
+    return html_mod.escape(str(text))
+
+
+def _extract_gallery_path(item):
+    """Extract a filepath string from various Gradio Gallery item formats."""
+    if isinstance(item, (tuple, list)):
+        return str(item[0]) if item else ""
     if isinstance(item, dict):
-        p = item.get("path") or item.get("name")
-        return str(p) if p else None
-    if hasattr(item, "path") and item.path:
-        return str(item.path)
-    if hasattr(item, "name") and item.name:
+        return str(item.get("name") or item.get("path", ""))
+    if hasattr(item, "name"):
         return str(item.name)
-    return str(item)
+    return str(item) if item else ""
 
 
-def _format_file_size(size_bytes):
-    """Formats bytes into human-readable string (e.g. 87.2 KB)."""
-    if not isinstance(size_bytes, (int, float)) or size_bytes <= 0:
-        return ""
-    if size_bytes < 1024:
-        return f"{size_bytes} B"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
+def _build_result_card_html(res):
+    """
+    Build the full HTML for one meme's 6-card result block.
+
+    The card structure is ALWAYS the same (4 rows, 6 cards).
+    Only the values change between empty / processing / completed states.
+    """
+    prediction = _escape(res.get("prediction", "—"))
+    confidence_html = res.get("confidence", _PLACEHOLDER_CONF)  # already HTML
+    ocr = _escape(res.get("ocr", "—"))
+    category = _escape(res.get("category", "—"))
+    dependency = _escape(res.get("dependency", "—"))
+    reasoning = _escape(res.get("reasoning", "—"))
+    meme_idx = res.get("index", 1)
+    is_multi = res.get("is_multi", False)
+    image_path = res.get("image_path", "")
+    is_placeholder = res.get("_placeholder", False)
+
+    # Prediction colour
+    pl = prediction.lower()
+    if pl in ("humorous", "humor"):
+        pred_color = "#22C55E"
+    elif pl in ("not humorous", "not humor"):
+        pred_color = "#EF4444"
     else:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
+        pred_color = "#6B7A90"
 
+    val_class = "r-card-value placeholder" if is_placeholder else "r-card-value"
 
-def _get_image_data_uri(path):
-    """Reads local image and converts to base64 data URI for reliable browser rendering."""
-    if not path or not os.path.exists(path):
-        return ""
-    try:
-        ext = os.path.splitext(path)[1].lower().replace(".", "")
-        mime_map = {
-            "png": "image/png",
-            "jpg": "image/jpeg",
-            "jpeg": "image/jpeg",
-            "webp": "image/webp",
-            "gif": "image/gif",
-            "bmp": "image/bmp"
-        }
-        mime = mime_map.get(ext, "image/jpeg")
-        with open(path, "rb") as f:
-            b64_data = base64.b64encode(f.read()).decode("utf-8")
-        return f"data:{mime};base64,{b64_data}"
-    except Exception as e:
-        logger.warning("Failed to encode image data URI: %s", e)
-        return ""
+    # Multi-meme header badge
+    header = ""
+    if is_multi:
+        header = (
+            f'<div class="meme-header">'
+            f'<span class="meme-badge">Meme {meme_idx}</span>'
+            f'</div>'
+        )
 
-
-def _render_multi_meme_cards_html(files):
-    """
-    Renders unified Multi-Meme preview gallery HTML.
-    Merges Meme Number Badge + Actual Image + Filename + File Size + Remove Button
-    into a single unified card component per image.
-    """
-    if not files or len(files) == 0:
-        return ""
-
-    cards_html = []
-    total_count = len(files)
-
-    for i, f in enumerate(files, 1):
-        path = _extract_file_path(f)
-        fname = os.path.basename(path) if path else f"Meme {i}.png"
-        
-        file_size_str = ""
-        data_uri = ""
-        if path and os.path.exists(path):
-            try:
-                sz = os.path.getsize(path)
-                file_size_str = _format_file_size(sz)
-            except Exception:
-                file_size_str = ""
-            data_uri = _get_image_data_uri(path)
-
-        card_html = f"""
-        <div class="multi-image-card" data-index="{i-1}">
-            <div class="multi-card-badge-row">
-                <span class="multi-card-badge">MEME {i}</span>
-                <button type="button" class="multi-card-del-btn" onclick="removeMultiMemeFile({i-1})" title="Remove Meme {i}">×</button>
-            </div>
-            <div class="multi-card-thumb-wrap">
-                <img src="{data_uri}" alt="Meme {i}" class="multi-card-thumb" />
-            </div>
-            <div class="multi-card-info-box">
-                <div class="multi-card-filename" title="{fname}">{fname}</div>
-                <div class="multi-card-meta-row">
-                    <span class="multi-card-filesize">{file_size_str}</span>
-                </div>
-            </div>
-        </div>
-        """
-        cards_html.append(card_html)
-
-    count_label = f"{total_count} {'meme' if total_count == 1 else 'memes'}"
-
-    js_helper = """
-    <script>
-    if (!window.removeMultiMemeFile) {
-        window.removeMultiMemeFile = function(idx) {
-            var container = document.getElementById('multi-file-uploader');
-            if (!container) return;
-            var delBtns = container.querySelectorAll('button[aria-label="Clear"], button[aria-label="Delete"], button[title="Delete"], button[title="Clear"], .file-row button, .file-item button, [data-testid="clear-button"], button.delete');
-            if (delBtns && delBtns[idx]) {
-                delBtns[idx].click();
-                return;
-            }
-            var allBtns = container.querySelectorAll('button');
-            if (allBtns && allBtns[idx]) {
-                allBtns[idx].click();
-            }
-        };
-    }
-    </script>
-    """
-
-    return f"""
-    <div class="multi-preview-section">
-        <div class="multi-preview-header">
-            <div class="multi-preview-title">
-                <span>🖼️ Uploaded Memes</span>
-                <span class="multi-order-tag">(Preserved Input Order)</span>
-            </div>
-            <span class="multi-preview-count">{count_label}</span>
-        </div>
-        <div class="multi-preview-grid">
-            {''.join(cards_html)}
-        </div>
+    return f"""<div class="meme-result-block">
+  {header}
+  <div class="card-row">
+    <div class="r-card">
+      <div class="r-card-label">🎯 HUMOR PREDICTION</div>
+      <div class="{val_class} prediction" style="color:{pred_color};">{prediction}</div>
     </div>
-    {js_helper}
+    <div class="r-card">
+      <div class="r-card-label">◉ CONFIDENCE SCORE</div>
+      <div class="{val_class}">{confidence_html}</div>
+    </div>
+  </div>
+  <div class="r-card r-card-fullwidth">
+    <div class="r-card-label">📄 DETECTED TEXT (OCR)</div>
+    <div class="{val_class}">{ocr}</div>
+  </div>
+  <div class="card-row">
+    <div class="r-card">
+      <div class="r-card-label">🌐 CULTURAL CONTEXT</div>
+      <div class="{val_class}">{category}</div>
+    </div>
+    <div class="r-card">
+      <div class="r-card-label">🔗 CULTURAL DEPENDENCY</div>
+      <div class="{val_class}">{dependency}</div>
+    </div>
+  </div>
+  <div class="r-card r-card-fullwidth">
+    <div class="r-card-label">🧠 AI REASONING</div>
+    <div class="{val_class}">{reasoning}</div>
+  </div>
+</div>"""
+
+
+def _build_all_results_html(results_list=None, status_text=""):
     """
+    Build the complete results-panel HTML.
+
+    If *results_list* is empty / None the permanent card structure is still
+    rendered with placeholder content so the panel is never visually empty.
+    """
+    parts = []
+    if status_text:
+        parts.append(f'<div class="status-text">{_escape(status_text)}</div>')
+
+    if not results_list:
+        parts.append(_build_result_card_html(EMPTY_RESULT))
+    else:
+        for res in results_list:
+            parts.append(_build_result_card_html(res))
+
+    return "\n".join(parts)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# UI FACTORY
+# ═══════════════════════════════════════════════════════════════════════════════
 def create_ui(analyze_fn):
     if gr is None:
         print("Gradio is not installed. Cannot create UI.")
         sys.exit(1)
 
-    with gr.Blocks(title="Culturally Aware Multimodal Humor Detection") as demo:
+    with gr.Blocks(title="Culturally Aware Humor Detection") as demo:
 
-        # ── HEADER ──
+        # ── HEADER ──────────────────────────────────────────────────────────
         with gr.Column(elem_classes=["header-section"]):
-            gr.Markdown("# 🎭 Culturally Aware Multimodal Humor Detection")
-            gr.Markdown("Vision-Language Humor Analysis for Hindi & Hinglish Memes (Qwen2.5-VL)")
+            gr.Markdown("# 🎭 Culturally Aware Humor Detection")
+            gr.Markdown("AI-Powered Hindi/Hinglish Meme Analysis")
 
-        # ── MAIN LAYOUT GRID ──
+        # ── STATE ───────────────────────────────────────────────────────────
+        active_tab = gr.State("single")
+        focused_idx = gr.State(None)
+
+        # ── MAIN LAYOUT ────────────────────────────────────────────────────
         with gr.Row(elem_classes=["main-grid"]):
 
-            # ── LEFT COLUMN: INPUT PANEL (42%) ──
-            with gr.Column(scale=42, elem_classes=["panel-card", "input-panel"]):
+            # ── LEFT: INPUT PANEL (42 %) ────────────────────────────────────
+            with gr.Column(scale=42, elem_classes=["panel-card"]):
                 gr.Markdown("📥 MEME INPUT", elem_classes=["panel-title"])
 
-                # Tab state: tracks which tab is currently selected (source of truth)
-                current_tab = gr.State(value="single")
-
                 with gr.Tabs():
-                    with gr.TabItem("🖼️ Single Meme") as single_tab:
+                    with gr.TabItem("🖼️ Single Meme") as tab_single:
                         single_image = gr.Image(
                             type="filepath",
-                            label="Upload Meme Image",
-                            sources=["upload", "clipboard"],
-                            elem_classes=["single-meme-dropzone", "meme-dropzone"],
-                            height=260
+                            label="Upload Single Meme",
+                            height=250,
+                            elem_classes=["meme-dropzone"],
+                            show_label=False,
                         )
-                    with gr.TabItem("📚 Multi-Meme / Strip") as multi_tab:
-                        multi_images = gr.File(
-                            file_count="multiple",
-                            file_types=["image"],
-                            label="Upload Multiple Meme Images",
-                            elem_id="multi-file-uploader",
-                            elem_classes=["meme-dropzone"]
-                        )
-                        # Unified Multi-Meme Preview Component (replaces duplicate labels + separate gallery)
-                        multi_preview_gallery = gr.HTML(value="", visible=False)
 
-                # Track tab selection — current_tab is the source of truth
-                single_tab.select(fn=lambda: "single", inputs=[], outputs=[current_tab])
-                multi_tab.select(fn=lambda: "multi", inputs=[], outputs=[current_tab])
+                    with gr.TabItem("📚 Multi-Meme / Comic Strip") as tab_multi:
+                        # -- gallery row (toggled off when focused) --
+                        with gr.Column() as gallery_panel:
+                            multi_images = gr.Gallery(
+                                label="Upload Meme Images",
+                                elem_classes=["meme-dropzone", "multi-gallery"],
+                                columns=8,
+                                rows=1,
+                                height=120,
+                                type="filepath",
+                                interactive=True,
+                            )
 
-                gr.Markdown("🌐 ANALYSIS MODE", elem_classes=["panel-title"])
+                        # -- focused viewer (toggled on when a thumb is clicked) --
+                        with gr.Column(
+                            visible=False,
+                            elem_classes=["focused-viewer"],
+                        ) as focused_panel:
+                            focused_label = gr.Markdown("### MEME 1")
+                            focused_img = gr.Image(
+                                interactive=False,
+                                height=300,
+                                show_label=False,
+                            )
+                            with gr.Row():
+                                prev_btn = gr.Button(
+                                    "← Previous",
+                                    size="sm",
+                                    elem_classes=["nav-btn"],
+                                )
+                                next_btn = gr.Button(
+                                    "Next →",
+                                    size="sm",
+                                    elem_classes=["nav-btn"],
+                                )
+                            back_btn = gr.Button(
+                                "↩ Back to All Memes",
+                                size="sm",
+                                elem_classes=["back-btn"],
+                            )
+
+                tab_single.select(lambda: "single", outputs=active_tab)
+                tab_multi.select(lambda: "multi", outputs=active_tab)
+
+                gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["panel-title"])
 
                 cultural_toggle = gr.Radio(
                     choices=["General", "Cultural-Aware"],
-                    value="Cultural-Aware",
+                    value="General",
                     show_label=False,
-                    elem_classes=["segmented-control"]
+                    elem_classes=["segmented-control"],
                 )
-
                 gr.Markdown(
-                    "**General Mode**: Standard VLM visual & linguistic reasoning without external cultural knowledge injection.\n\n"
-                    "**Cultural-Aware Mode**: Detects cultural entities, retrieves Indian cultural knowledge (family, exams, cricket, cinema, slang), and conditions VLM reasoning.",
-                    elem_classes=["mode-explanation"]
+                    "**General**  \n"
+                    "Standard multimodal VLM reasoning without external "
+                    "cultural context.  \n\n"
+                    "**Cultural-Aware**  \n"
+                    "Retrieves relevant Indian cultural knowledge, slang, "
+                    "and context during reasoning.",
+                    elem_classes=["mode-explanation"],
                 )
 
-                analyze_btn = gr.Button("✨ Analyze Meme", elem_id="analyze-btn")
+                analyze_btn = gr.Button(
+                    "✨ Analyze Meme", elem_id="analyze-btn"
+                )
 
-            # ── RIGHT COLUMN: RESULTS PANEL (58%) ──
-            with gr.Column(scale=58, elem_classes=["panel-card", "results-panel"]):
-                gr.Markdown("📊 ANALYSIS RESULTS", elem_classes=["panel-title"])
-                gr.Markdown("Multimodal inference insights & structured cultural reasoning", elem_classes=["results-subtitle"])
+            # ── RIGHT: RESULTS PANEL (58 %) ─────────────────────────────────
+            with gr.Column(scale=58, elem_classes=["panel-card"]):
+                gr.Markdown(
+                    "📊 ANALYSIS RESULTS", elem_classes=["panel-title"]
+                )
+                # Permanent card structure — always visible, content changes
+                results_html = gr.HTML(value=_build_all_results_html())
 
-                # View A: Single-Meme Results (Clean 7 Cards)
-                with gr.Group(visible=True) as single_results_group:
-                    # Row 1: Humor Prediction + Model Probability
-                    with gr.Row(elem_classes=["sub-row"]):
-                        with gr.Column(elem_classes=["result-card"]):
-                            gr.Markdown("🎯 HUMOR PREDICTION", elem_classes=["card-label"])
-                            pred_out = gr.Textbox(
-                                show_label=False,
-                                interactive=False,
-                                elem_classes=["prediction-box"]
-                            )
-                        with gr.Column(elem_classes=["result-card"]):
-                            gr.Markdown("◉ MODEL PROBABILITY", elem_classes=["card-label"])
-                            conf_out = gr.HTML(elem_classes=["confidence-display"])
+        # ═══════════════════════════════════════════════════════════════════
+        # EVENT HANDLERS — Gallery Focused Viewer
+        # ═══════════════════════════════════════════════════════════════════
 
-                    # Row 2: Detected Text (OCR)
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("📄 DETECTED TEXT (OCR)", elem_classes=["card-label"])
-                        text_out = gr.Textbox(
-                            show_label=False,
-                            interactive=False,
-                            lines=2
-                        )
-
-                    # Row 3: Cultural Category + Cultural Dependency
-                    with gr.Row(elem_classes=["sub-row"]):
-                        with gr.Column(elem_classes=["result-card"]):
-                            gr.Markdown("🏷️ CULTURAL CATEGORY", elem_classes=["card-label"])
-                            cat_out = gr.Textbox(
-                                show_label=False,
-                                interactive=False,
-                                lines=1
-                            )
-                        with gr.Column(elem_classes=["result-card"]):
-                            gr.Markdown("🔗 CULTURAL DEPENDENCY", elem_classes=["card-label"])
-                            dep_out = gr.Textbox(
-                                show_label=False,
-                                interactive=False,
-                                lines=1
-                            )
-
-                    # Row 4: Cultural Context (Dedicated Card)
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("🌐 CULTURAL CONTEXT", elem_classes=["card-label"])
-                        ctx_out = gr.Textbox(
-                            show_label=False,
-                            interactive=False,
-                            lines=2
-                        )
-
-                    # Row 5: AI Reasoning (Reasoning only, no raw JSON)
-                    with gr.Column(elem_classes=["result-card"]):
-                        gr.Markdown("🧠 AI REASONING", elem_classes=["card-label"])
-                        reason_out = gr.Textbox(
-                            show_label=False,
-                            interactive=False,
-                            lines=3
-                        )
-
-                # View B: Multi-Meme Results (Independent Per-Image Cards)
-                with gr.Group(visible=False) as multi_results_group:
-                    multi_cards_display = gr.HTML(elem_classes=["multi-cards-container"])
-
-        # ── UNIFIED MULTI-MEME PREVIEW UPDATE ──
-        def _update_multi_cards(files):
-            """Update unified multi-meme cards when files change in multi-meme upload."""
-            if not files or len(files) == 0:
-                return gr.update(value="", visible=False)
-
-            html = _render_multi_meme_cards_html(files)
-            return gr.update(value=html, visible=bool(html))
-
-        multi_images.change(
-            fn=_update_multi_cards,
-            inputs=[multi_images],
-            outputs=[multi_preview_gallery]
-        )
-
-        # ── CLICK ACTION BINDING (TAB-AWARE DISPATCH WITH RESULT CLEARING) ──
-
-        def _clear_results():
-            """Clear all visible results before starting a new analysis.
-            This prevents old results from remaining visible under new loading state."""
+        def _on_gallery_select(gallery_data, evt: gr.SelectData):
+            """Open focused viewer for the clicked thumbnail."""
+            idx = evt.index
+            if not gallery_data or idx >= len(gallery_data):
+                return (
+                    gr.update(), gr.update(), gr.update(), gr.update(),
+                    gr.update(), gr.update(), None,
+                )
+            img = _extract_gallery_path(gallery_data[idx])
+            total = len(gallery_data)
             return (
-                gr.update(visible=True),   # Show single results (default view during loading)
-                gr.update(visible=False),  # Hide multi results
-                "",                         # Clear multi HTML
-                "⏳ Analyzing...",          # pred_out — loading indicator
-                "",                         # conf_out
-                "",                         # text_out
-                "",                         # cat_out
-                "",                         # dep_out
-                "",                         # ctx_out
-                ""                          # reason_out
+                gr.update(visible=False),                  # gallery_panel
+                gr.update(visible=True),                   # focused_panel
+                f"### MEME {idx + 1}",                     # focused_label
+                img,                                       # focused_img
+                gr.update(interactive=(idx > 0)),          # prev_btn
+                gr.update(interactive=(idx < total - 1)),  # next_btn
+                idx,                                       # focused_idx
             )
 
-        def _dispatch_analysis(single_path, multi_paths, mode, tab_state, progress=gr.Progress(track_tqdm=False)):
-            """
-            Tab-aware dispatch: uses current_tab as the source of truth
-            for whether to run single-image or multi-image analysis.
-            Current uploaded images determine the image count — never previous state.
-            """
-            is_single_tab = (tab_state == "single")
+        multi_images.select(
+            fn=_on_gallery_select,
+            inputs=[multi_images],
+            outputs=[
+                gallery_panel, focused_panel, focused_label,
+                focused_img, prev_btn, next_btn, focused_idx,
+            ],
+        )
 
-            if is_single_tab:
-                # ── SINGLE MEME MODE ──
-                # Use ONLY the current single image; ignore any multi-image state
-                if not single_path:
-                    return (
-                        gr.update(visible=True),
-                        gr.update(visible=False),
-                        "",
-                        "Unavailable",
-                        "<span style='color:#EF4444;font-size:14px;'>No image uploaded</span>",
-                        "No image provided",
-                        "No specific cultural category detected",
-                        "Not analyzed",
-                        "Not analyzed",
-                        "Please upload a meme image in the 'Single Meme' tab before clicking Analyze."
-                    )
+        def _on_prev(gallery_data, cur):
+            if cur is None or cur <= 0:
+                return gr.update(), gr.update(), gr.update(), gr.update(), cur
+            nxt = cur - 1
+            total = len(gallery_data)
+            return (
+                f"### MEME {nxt + 1}",
+                _extract_gallery_path(gallery_data[nxt]),
+                gr.update(interactive=(nxt > 0)),
+                gr.update(interactive=(nxt < total - 1)),
+                nxt,
+            )
 
-                resp = analyze_fn(single_path, mode, progress=progress)
-                p0 = resp[0] if len(resp) > 0 else "Not Humorous"
-                p1 = resp[1] if len(resp) > 1 else ""
-                p2 = resp[2] if len(resp) > 2 else ""
-                p3 = resp[3] if len(resp) > 3 else ""
-                p4 = resp[4] if len(resp) > 4 else ""
-                p5 = resp[5] if len(resp) > 5 else ""
-                p6 = resp[6] if len(resp) > 6 else ""
-                return (
-                    gr.update(visible=True),    # Show single view
-                    gr.update(visible=False),   # Hide multi view — no stale multi cards
-                    "",                          # Clear multi HTML
-                    p0, p1, p2, p3, p4, p5, p6
+        prev_btn.click(
+            fn=_on_prev,
+            inputs=[multi_images, focused_idx],
+            outputs=[focused_label, focused_img, prev_btn, next_btn, focused_idx],
+        )
+
+        def _on_next(gallery_data, cur):
+            if cur is None or gallery_data is None:
+                return gr.update(), gr.update(), gr.update(), gr.update(), cur
+            total = len(gallery_data)
+            if cur >= total - 1:
+                return gr.update(), gr.update(), gr.update(), gr.update(), cur
+            nxt = cur + 1
+            return (
+                f"### MEME {nxt + 1}",
+                _extract_gallery_path(gallery_data[nxt]),
+                gr.update(interactive=(nxt > 0)),
+                gr.update(interactive=(nxt < total - 1)),
+                nxt,
+            )
+
+        next_btn.click(
+            fn=_on_next,
+            inputs=[multi_images, focused_idx],
+            outputs=[focused_label, focused_img, prev_btn, next_btn, focused_idx],
+        )
+
+        def _on_back():
+            return gr.update(visible=True), gr.update(visible=False), None
+
+        back_btn.click(
+            fn=_on_back,
+            outputs=[gallery_panel, focused_panel, focused_idx],
+        )
+
+        # ═══════════════════════════════════════════════════════════════════
+        # EVENT HANDLER — Analysis  (only fires on explicit button click)
+        # ═══════════════════════════════════════════════════════════════════
+
+        def process_analysis(single_path, multi_paths, mode, tab):
+            """
+            Generator that yields updated results HTML after each meme.
+
+            * Single-meme: one iteration.
+            * Multi-meme:  one iteration per meme, yielding cumulative HTML
+              so previously-completed results remain visible.
+            """
+            paths = []
+            is_multi = False
+
+            if tab == "multi" and multi_paths:
+                for item in multi_paths:
+                    p = _extract_gallery_path(item)
+                    if p:
+                        paths.append(p)
+                is_multi = True
+            elif tab == "single" and single_path:
+                paths = [single_path]
+
+            if not paths:
+                yield _build_all_results_html(
+                    None, "⚠️ Please upload a meme image first."
+                )
+                return
+
+            results_list = []
+            total = len(paths)
+
+            for i, p in enumerate(paths, 1):
+                # ── Show processing-state card for this meme ────────────
+                proc = dict(PROCESSING_RESULT)
+                proc["index"] = i
+                proc["is_multi"] = is_multi
+                if is_multi:
+                    proc["image_path"] = p
+                status = (
+                    f"⏳ Analyzing Meme {i} of {total}…"
+                    if total > 1
+                    else "⏳ Analyzing meme…"
+                )
+                yield _build_all_results_html(
+                    results_list + [proc], status
                 )
 
-            else:
-                # ── MULTI-MEME MODE ──
-                # Use ONLY the CURRENT multi-image file list
-                has_multi = multi_paths and isinstance(multi_paths, list) and len(multi_paths) > 0
-
-                if not has_multi:
-                    return (
-                        gr.update(visible=True),
-                        gr.update(visible=False),
-                        "",
-                        "Unavailable",
-                        "<span style='color:#EF4444;font-size:14px;'>No images uploaded</span>",
-                        "No images provided",
-                        "No specific cultural category detected",
-                        "Not analyzed",
-                        "Not analyzed",
-                        "Please upload meme images in the 'Multi-Meme / Strip' tab before clicking Analyze."
+                # ── Run inference (backend untouched) ───────────────────
+                try:
+                    out = analyze_fn(p, mode)
+                except Exception as e:
+                    out = (
+                        "Error", "N/A", "N/A", "N/A", "N/A",
+                        f"Error: {str(e)}",
                     )
 
-                current_count = len(multi_paths)
+                res_dict = {
+                    "index": i,
+                    "is_multi": is_multi,
+                    "image_path": p,
+                    "prediction": out[0],
+                    "confidence": out[1],
+                    "ocr": out[2],
+                    "category": out[3],
+                    "dependency": out[4],
+                    "reasoning": out[5],
+                }
+                results_list.append(res_dict)
 
-                if current_count == 1:
-                    # Single image in multi tab — use single-image pipeline, show single view
-                    resp = analyze_fn(multi_paths[0], mode, progress=progress)
-                    p0 = resp[0] if len(resp) > 0 else "Not Humorous"
-                    p1 = resp[1] if len(resp) > 1 else ""
-                    p2 = resp[2] if len(resp) > 2 else ""
-                    p3 = resp[3] if len(resp) > 3 else ""
-                    p4 = resp[4] if len(resp) > 4 else ""
-                    p5 = resp[5] if len(resp) > 5 else ""
-                    p6 = resp[6] if len(resp) > 6 else ""
-                    return (
-                        gr.update(visible=True),    # Show single view
-                        gr.update(visible=False),   # Hide multi view
-                        "",
-                        p0, p1, p2, p3, p4, p5, p6
+                # ── Yield cumulative results so far ─────────────────────
+                if total > 1:
+                    yield _build_all_results_html(
+                        results_list, f"✅ Meme {i} Complete"
                     )
 
-                # Multiple images — use multi-image pipeline
-                resp = analyze_fn(multi_paths, mode, progress=progress)
-                multi_html = resp.get("multi_html", "") if isinstance(resp, dict) else ""
-                p0 = resp[0] if len(resp) > 0 else "Not Humorous"
-                p1 = resp[1] if len(resp) > 1 else ""
-                p2 = resp[2] if len(resp) > 2 else ""
-                p3 = resp[3] if len(resp) > 3 else ""
-                p4 = resp[4] if len(resp) > 4 else ""
-                p5 = resp[5] if len(resp) > 5 else ""
-                p6 = resp[6] if len(resp) > 6 else ""
-                return (
-                    gr.update(visible=False),   # Hide single view
-                    gr.update(visible=True),    # Show multi view
-                    multi_html,
-                    p0, p1, p2, p3, p4, p5, p6
-                )
+            final = (
+                f"✅ {total}/{total} Memes Analyzed"
+                if total > 1
+                else "✅ Analysis Complete"
+            )
+            yield _build_all_results_html(results_list, final)
 
-        # Chain: clear old results → run analysis
-        # The first callback clears visible UI immediately, then the analysis fills in results
         analyze_btn.click(
-            fn=_clear_results,
-            inputs=[],
-            outputs=[
-                single_results_group,
-                multi_results_group,
-                multi_cards_display,
-                pred_out, conf_out, text_out, cat_out, dep_out, ctx_out, reason_out
-            ]
-        ).then(
-            fn=_dispatch_analysis,
-            inputs=[single_image, multi_images, cultural_toggle, current_tab],
-            outputs=[
-                single_results_group,
-                multi_results_group,
-                multi_cards_display,
-                pred_out, conf_out, text_out, cat_out, dep_out, ctx_out, reason_out
-            ]
+            fn=process_analysis,
+            inputs=[single_image, multi_images, cultural_toggle, active_tab],
+            outputs=[results_html],
+            show_progress="hidden",       # prevents Gradio progress thumbnail leak
         )
 
     return demo
-

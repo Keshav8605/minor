@@ -20,6 +20,10 @@ data/processed/*
 !data/processed/.gitkeep
 data/external/*
 !data/external/.gitkeep
+data/cultural/drishtikon/raw/*
+!data/cultural/drishtikon/raw/.gitkeep
+data/cultural/drishtikon/processed/*
+!data/cultural/drishtikon/processed/.gitkeep
 *.pt
 *.pth
 *.bin
