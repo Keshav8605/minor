@@ -18,6 +18,8 @@ dependencies = [
     "qwen-vl-utils",
     "torchvision",
     "accelerate",
+    "chromadb>=1.5.9",
+    "sentence-transformers>=6.1.0",
 ]
 
 [project.optional-dependencies]
