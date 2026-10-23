@@ -153,22 +153,92 @@ class CheckpointManager:
             logger.error("Failed to load checkpoint: %s", e)
             return None
     
+    @staticmethod
+    def is_record_complete(r: dict) -> bool:
+        """
+        Check if an inference result record is structurally complete.
+        An incomplete record (missing critical identifiers, or marked incomplete)
+        must not be treated as completed.
+        """
+        if not isinstance(r, dict):
+            return False
+        if r.get("incomplete", False):
+            return False
+        required_keys = {"sample_index", "condition", "image_filename"}
+        if not required_keys.issubset(r.keys()):
+            return False
+        if r.get("sample_index") is None or not r.get("condition"):
+            return False
+        return True
+
+    @staticmethod
+    def is_record_valid_prediction(r: dict) -> bool:
+        """
+        Check if an inference result record represents a valid, successful prediction
+        (not timed out, no json/parsing error, and prediction in {0, 1}).
+        """
+        if not CheckpointManager.is_record_complete(r):
+            return False
+        if r.get("timed_out", False):
+            return False
+        if r.get("json_error") is not None:
+            return False
+        return r.get("prediction") in (0, 1)
+
+    def validate_configuration(self, expected_hashes: dict, config_name: Optional[str] = None):
+        """
+        Ensure results from different configurations cannot share checkpoints accidentally.
+        Raises ValueError if existing checkpoint config hashes mismatch expected hashes.
+        """
+        ckpt = self.load_checkpoint()
+        if not ckpt:
+            return
+        
+        ckpt_hashes = ckpt.get("config_hashes", {})
+        mismatches = []
+        for k, v in expected_hashes.items():
+            if k in ckpt_hashes and ckpt_hashes[k] != v:
+                mismatches.append(f"{k}: existing '{ckpt_hashes[k]}' != expected '{v}'")
+        
+        if mismatches:
+            raise ValueError(
+                f"Configuration mismatch in checkpoint directory '{self.results_dir}':\n"
+                f"  {', '.join(mismatches)}\n"
+                "Results from different configurations cannot share checkpoints accidentally. "
+                "Specify a separate results_dir for each configuration (e.g. config_a, config_b, config_c)."
+            )
+
     def get_completed_pairs(self) -> Set[Tuple[int, str]]:
         """
         Get the set of completed (sample_index, condition) pairs.
         Cross-references checkpoint with actual JSONL results for safety.
+        Only structurally complete records in JSONL are considered completed.
+        Incomplete or corrupt records are rejected so they are not skipped.
         """
         completed = set()
         
         # Primary source: JSONL results (ground truth of what was persisted)
         results = self.load_results()
         for r in results:
-            sample_idx = r.get("sample_index")
-            condition = r.get("condition")
-            if sample_idx is not None and condition is not None:
+            if self.is_record_complete(r):
+                sample_idx = r.get("sample_index")
+                condition = r.get("condition")
                 completed.add((sample_idx, condition))
         
         return completed
+
+    def get_valid_completed_pairs(self) -> Set[Tuple[int, str]]:
+        """
+        Get the set of (sample_index, condition) pairs that produced valid predictions.
+        Failed/timed-out inferences are excluded so resume logic never mistakes
+        a failure for a completed valid prediction.
+        """
+        valid_completed = set()
+        results = self.load_results()
+        for r in results:
+            if self.is_record_valid_prediction(r):
+                valid_completed.add((r["sample_index"], r["condition"]))
+        return valid_completed
     
     def is_pair_completed(self, sample_index: int, condition: str) -> bool:
         """Check if a specific (sample_index, condition) pair is completed."""
@@ -201,25 +271,36 @@ class CheckpointManager:
         """Generate a status report from persisted state."""
         checkpoint = self.load_checkpoint()
         completed_pairs = self.get_completed_pairs()
+        valid_pairs = self.get_valid_completed_pairs()
         
         general_completed = sum(1 for _, c in completed_pairs if c == "general")
         cultural_completed = sum(1 for _, c in completed_pairs if c == "cultural")
+        general_valid = sum(1 for _, c in valid_pairs if c == "general")
+        cultural_valid = sum(1 for _, c in valid_pairs if c == "cultural")
+        
+        # Scan actual results for true failure counters
+        results = self.load_results()
+        timeouts = sum(1 for r in results if self.is_record_complete(r) and r.get("timed_out", False))
+        json_failures = sum(1 for r in results if self.is_record_complete(r) and r.get("json_error") is not None)
         
         total = checkpoint.get("total_inferences", 40) if checkpoint else 40
         
         return {
             "completed": len(completed_pairs),
+            "valid_completed": len(valid_pairs),
             "total": total,
             "remaining": total - len(completed_pairs),
             "general_completed": general_completed,
             "cultural_completed": cultural_completed,
+            "general_valid": general_valid,
+            "cultural_valid": cultural_valid,
             "general_total": total // 2,
             "cultural_total": total // 2,
             "last_completed_sample": checkpoint.get("last_completed_sample") if checkpoint else None,
             "last_completed_condition": checkpoint.get("last_completed_condition") if checkpoint else None,
             "status": checkpoint.get("status", "unknown") if checkpoint else "no_checkpoint",
-            "timeouts": checkpoint.get("timeouts", 0) if checkpoint else 0,
-            "json_failures": checkpoint.get("json_failures", 0) if checkpoint else 0,
+            "timeouts": timeouts if timeouts > 0 else (checkpoint.get("timeouts", 0) if checkpoint else 0),
+            "json_failures": json_failures if json_failures > 0 else (checkpoint.get("json_failures", 0) if checkpoint else 0),
             "evaluation_dir": self.results_dir,
             "checkpoint_exists": checkpoint is not None,
             "stop_requested": self.is_stop_requested(),

@@ -89,11 +89,12 @@ class VLMEvaluator:
                     cultural_sources=cultural_sources
                 )
                 raw_response = result.get("raw_response", str(result))
-                if result.get("error"):
+                if result.get("error") or result.get("timed_out"):
                     parsing_status = "FAILED"
+                    prediction_val = None
                 else:
                     pred_bool = result.get("humorous")
-                    prediction_val = 1 if pred_bool else 0
+                    prediction_val = 1 if pred_bool is True else (0 if pred_bool is False else None)
                     confidence = result.get("confidence")
                     cultural_category = result.get("cultural_category", "")
                     cultural_dependency = result.get("cultural_dependency", "")

@@ -107,13 +107,124 @@ def parse_json_response(raw_text: str) -> dict:
 
 def _try_parse(text: str):
     """Attempts to parse JSON, returns dict or None."""
+    if not text:
+        return None
+    try:
+        result = json.loads(text, strict=False)
+        if isinstance(result, dict):
+            return result
+    except (json.JSONDecodeError, ValueError):
+        pass
     try:
         result = json.loads(text)
         if isinstance(result, dict):
             return result
-        return None
     except (json.JSONDecodeError, ValueError):
         return None
+    return None
+
+
+def normalize_result_schema(data: dict) -> dict:
+    """
+    Normalizes any parsed VLM dict into ONE consistent canonical schema:
+      - humorous: bool or None
+      - prediction: 'Humorous', 'Not Humorous', or 'Unavailable'
+      - detected_text: str
+      - visual_description: str
+      - cultural_category: str (properly formatted or sensible default)
+      - cultural_dependency: 'Low', 'Medium', 'High', or 'Not analyzed'
+      - cultural_context: str
+      - reasoning: str (clean text, never raw JSON)
+      - reason: str (alias pointing to reasoning)
+    """
+    if not isinstance(data, dict):
+        return data
+
+    norm = dict(data)
+
+    # 1. Normalize humorous and prediction
+    h_val = norm.get("humorous")
+    if h_val is True or h_val == 1 or str(h_val).lower() == "true":
+        norm["humorous"] = True
+        norm["prediction"] = "Humorous"
+    elif h_val is False or h_val == 0 or str(h_val).lower() == "false":
+        norm["humorous"] = False
+        norm["prediction"] = "Not Humorous"
+    else:
+        norm["humorous"] = None
+        norm["prediction"] = "Unavailable"
+
+    # 2. Normalize reasoning (priority: reasoning then reason)
+    reasoning_text = norm.get("reasoning") or norm.get("reason") or ""
+    reasoning_text = str(reasoning_text).strip()
+
+    # Prevent raw JSON leakage into reasoning
+    if reasoning_text.startswith("{") and ('"humorous"' in reasoning_text or '"reason"' in reasoning_text):
+        inner = _try_parse(reasoning_text)
+        if inner and isinstance(inner, dict):
+            reasoning_text = inner.get("reasoning") or inner.get("reason") or ""
+            if not norm.get("cultural_context") and inner.get("cultural_context"):
+                norm["cultural_context"] = inner["cultural_context"]
+            if not norm.get("cultural_category") and inner.get("cultural_category"):
+                norm["cultural_category"] = inner["cultural_category"]
+            if not norm.get("cultural_dependency") and inner.get("cultural_dependency"):
+                norm["cultural_dependency"] = inner["cultural_dependency"]
+
+    if not reasoning_text or reasoning_text.lower() in ("none", "null"):
+        reasoning_text = "No reasoning provided."
+
+    norm["reasoning"] = reasoning_text
+    norm["reason"] = reasoning_text
+
+    # 3. Normalize cultural context
+    ctx = norm.get("cultural_context")
+    if not ctx or str(ctx).lower() in ("none", "null", ""):
+        ctx_used = norm.get("cultural_context_used")
+        if isinstance(ctx_used, str) and ctx_used.lower() not in ("true", "false", "none", "null", ""):
+            ctx = ctx_used
+    if not ctx or str(ctx).lower() in ("none", "null", ""):
+        ctx = "No significant cultural context detected"
+    norm["cultural_context"] = str(ctx).strip()
+
+    # 4. Normalize cultural category
+    cat = norm.get("cultural_category")
+    if not cat or str(cat).lower() in ("none", "null", ""):
+        norm["cultural_category"] = "No specific cultural category detected"
+    else:
+        cat_str = str(cat).strip()
+        parts = [p.strip().title() for p in re.split(r'[/,]', cat_str) if p.strip()]
+        norm["cultural_category"] = " / ".join(parts) if parts else cat_str.title()
+
+    # 5. Normalize cultural dependency (Low, Medium, High)
+    dep = norm.get("cultural_dependency")
+    if not dep or str(dep).lower() in ("null", ""):
+        norm["cultural_dependency"] = "Not analyzed"
+    else:
+        dep_str = str(dep).strip().lower()
+        if "high" in dep_str:
+            norm["cultural_dependency"] = "High"
+        elif "med" in dep_str:
+            norm["cultural_dependency"] = "Medium"
+        elif "low" in dep_str or "none" in dep_str:
+            norm["cultural_dependency"] = "Low"
+        else:
+            norm["cultural_dependency"] = dep_str.title()
+
+    # 6. Normalize detected_text
+    dt = norm.get("detected_text")
+    if not dt or str(dt).lower() in ("none", "null", ""):
+        norm["detected_text"] = "No text detected in image"
+    else:
+        norm["detected_text"] = str(dt).strip()
+
+    # 7. Normalize visual_description
+    vd = norm.get("visual_description")
+    if not vd or str(vd).lower() in ("none", "null", ""):
+        norm["visual_description"] = "No visual description provided"
+    else:
+        norm["visual_description"] = str(vd).strip()
+
+    return norm
 
 
 def _validate_and_normalize(parsed: dict) -> dict:
@@ -159,6 +270,16 @@ def _validate_and_normalize(parsed: dict) -> dict:
         if field not in parsed:
             parsed[field] = None
 
+    # Derive prediction field if not explicitly present
+    if parsed.get("prediction") is None:
+        h_val = parsed.get("humorous")
+        if h_val is True:
+            parsed["prediction"] = "Humorous"
+        elif h_val is False:
+            parsed["prediction"] = "Not Humorous"
+        else:
+            parsed["prediction"] = "Unavailable"
+
     return parsed
 
 
@@ -193,8 +314,9 @@ def _clean_json_text(text: str):
 
     # Fix trailing commas before closing brace
     content = re.sub(r',\s*}', '}', content)
-    # Fix single quotes to double quotes (basic)
+    # Fix single quotes to double quotes for keys and values
     content = re.sub(r"'(\w+)':", r'"\1":', content)
+    content = re.sub(r":\s*'([^']*)'", r': "\1"', content)
     # Fix True/False to true/false
     content = content.replace(': True', ': true').replace(': False', ': false')
     content = content.replace(':True', ':true').replace(':False', ':false')
@@ -252,30 +374,45 @@ def _attempt_safe_structural_recovery(raw_text: str) -> dict:
     for key, value in string_pairs:
         extracted[key] = value
 
-    # Match "key": true/false
-    bool_pairs = re.findall(r'"(\w+)"\s*:\s*(true|false)\b', partial)
+    # Match "key": true/false (case-insensitive and quoted variants)
+    bool_pairs = re.findall(r'"(\w+)"\s*:\s*(true|false|True|False)\b', partial, re.IGNORECASE)
     for key, value in bool_pairs:
-        extracted[key] = value == "true"
+        if key not in extracted:
+            extracted[key] = value.lower() == "true"
+
+    quoted_bool_pairs = re.findall(r'"(\w+)"\s*:\s*"(true|false|True|False)"', partial, re.IGNORECASE)
+    for key, value in quoted_bool_pairs:
+        if key not in extracted:
+            extracted[key] = value.lower() == "true"
 
     # Match "key": number
     num_pairs = re.findall(r'"(\w+)"\s*:\s*(-?\d+(?:\.\d+)?)\b', partial)
     for key, value in num_pairs:
-        try:
-            extracted[key] = float(value) if '.' in value else int(value)
-        except ValueError:
-            pass
+        if key not in extracted:
+            try:
+                extracted[key] = float(value) if '.' in value else int(value)
+            except ValueError:
+                pass
 
     # Match "key": null
     null_pairs = re.findall(r'"(\w+)"\s*:\s*null\b', partial)
     for key, _ in null_pairs:
-        extracted[key] = None
+        if key not in extracted:
+            extracted[key] = None
+
+    # Handle unclosed trailing string for text fields (e.g. reason or visual_description cut off)
+    trailing_str = re.search(r'"(\w+)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)$', partial)
+    if trailing_str:
+        t_key, t_val = trailing_str.group(1), trailing_str.group(2)
+        if t_key not in extracted and t_key in _ALL_EXPECTED_FIELDS:
+            extracted[t_key] = t_val.strip()
 
     if not extracted:
         logger.warning("Safe structural recovery failed: no complete key-value pairs found")
         return None
 
     # Only accept recovery if the critical 'humorous' field was extracted
-    if "humorous" not in extracted:
+    if "humorous" not in extracted or extracted["humorous"] is None:
         logger.warning("Safe structural recovery: 'humorous' field not found in partial content")
         return None
 
@@ -293,6 +430,7 @@ def _make_error_result(error_msg: str, raw_response: str) -> dict:
         "error": error_msg,
         "raw_response": raw_response,
         "humorous": None,
+        "prediction": "Unavailable",
         "confidence": None,
         "detected_text": None,
         "visual_description": None,
@@ -300,4 +438,5 @@ def _make_error_result(error_msg: str, raw_response: str) -> dict:
         "cultural_category": None,
         "cultural_dependency": None,
         "reason": None,
+        "reasoning": "Inference failed or output was unparseable.",
     }
