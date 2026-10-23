@@ -10,13 +10,38 @@ question, answer, image_name, image_link, relevance_score).
 Does NOT fabricate explanations or invent facts.
 """
 
+import re
 import logging
 from typing import List, Dict, Optional
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 from sklearn.metrics.pairwise import cosine_similarity
 from .drishtikon_loader import DrishtikonKnowledgeBase
 
 logger = logging.getLogger(__name__)
+
+# Generic structural tokens in QA/metadata that must not count as meaningful content tokens
+GENERIC_STRUCTURAL = {"section", "depicted", "image", "question", "answer", "option", "general"}
+
+# Indian states and territories to separate geographic anchors from core cultural content
+INDIAN_STATES = {
+    "delhi", "haryana", "punjab", "uttarakhand", "bihar", "gujarat",
+    "maharashtra", "karnataka", "tamil_nadu", "tamil", "nadu",
+    "west_bengal", "bengal", "kerala", "rajasthan", "odisha",
+    "jharkhand", "telangana", "uttar_pradesh", "madhya_pradesh",
+    "assam", "sikkim", "puducherry", "chandigarh", "goa", "india", "indian"
+}
+
+
+def _extract_content_tokens(text: str) -> set:
+    """Extracts non-stopword, non-state, non-structural content tokens."""
+    tokens = set(re.findall(r"\b[a-zA-Z]{2,}\b", text.lower()))
+    return tokens - ENGLISH_STOP_WORDS - INDIAN_STATES - GENERIC_STRUCTURAL
+
+
+def _extract_state_tokens(text: str) -> set:
+    """Extracts Indian state and territory tokens."""
+    tokens = set(re.findall(r"\b[a-zA-Z]{2,}\b", text.lower()))
+    return tokens & INDIAN_STATES
 
 
 class DrishtikonRetriever:
@@ -28,7 +53,7 @@ class DrishtikonRetriever:
         self,
         knowledge_path: Optional[str] = None,
         top_k: int = 3,
-        min_similarity_threshold: float = 0.15
+        min_similarity_threshold: float = 0.25
     ):
         self.top_k = top_k
         self.min_similarity_threshold = min_similarity_threshold
@@ -81,6 +106,11 @@ class DrishtikonRetriever:
             # Rank indices by score descending
             ranked_indices = sim_scores.argsort()[::-1]
 
+            query_tokens = set(re.findall(r"\b[a-zA-Z]{2,}\b", query_clean))
+            query_content = _extract_content_tokens(query_clean)
+            query_states = _extract_state_tokens(query_clean)
+            query_has_structural = bool(query_tokens & GENERIC_STRUCTURAL)
+
             results = []
             for idx in ranked_indices:
                 score = float(sim_scores[idx])
@@ -88,6 +118,29 @@ class DrishtikonRetriever:
                     break  # Since array is sorted descending, remaining scores are even lower
 
                 record = dict(self.kb.records[idx])
+
+                # Content-token overlap constraint for weak matches below 0.45
+                if score < 0.45:
+                    doc_search_text = record.get("search_text", "").lower()
+                    doc_content = _extract_content_tokens(doc_search_text)
+                    content_overlap = query_content.intersection(doc_content)
+
+                    doc_states = _extract_state_tokens(doc_search_text)
+                    state_overlap = query_states.intersection(doc_states)
+
+                    # For queries containing generic structural tokens (e.g. 'section'), require multi-token evidence:
+                    # at least 2 distinct non-state content tokens, OR at least 1 non-state content token + state agreement.
+                    # For standard queries, require at least 1 meaningful non-state, non-structural content token.
+                    if query_has_structural:
+                        has_sufficient_overlap = (len(content_overlap) >= 2) or (
+                            len(content_overlap) >= 1 and len(state_overlap) >= 1
+                        )
+                    else:
+                        has_sufficient_overlap = len(content_overlap) >= 1
+
+                    if not has_sufficient_overlap:
+                        continue
+
                 record["relevance_score"] = round(score, 4)
                 results.append(record)
 

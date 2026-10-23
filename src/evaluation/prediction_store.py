@@ -57,3 +57,20 @@ class PredictionStore:
             for row in reader:
                 completed.add(row["sample_id"])
         return completed
+
+    def load_valid_completed_ids(self):
+        """Loads only sample IDs where prediction was successfully generated (not None and parsing_status == 'SUCCESS')."""
+        if not self.predictions_file.exists():
+            return set()
+            
+        valid = set()
+        with open(self.predictions_file, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if (
+                    row.get("parsing_status") == "SUCCESS"
+                    and row.get("prediction") in ("0", "1")
+                    and row.get("error_status") in ("NONE", "")
+                ):
+                    valid.add(row["sample_id"])
+        return valid

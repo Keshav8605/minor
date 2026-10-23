@@ -22,7 +22,7 @@ class TestRegressionCulturalParsing(unittest.TestCase):
   "reason": "The humor stems from the relatable pressure in Indian households where academic benchmarks set by peer children create comic domestic tension."
 }
 """
-        parsed = parse_json_response(raw_vlm_response)
+        parsed = normalize_result_schema(parse_json_response(raw_vlm_response))
 
         # 1. Verify structured output parsing
         self.assertNotIn("error", parsed)
@@ -68,7 +68,7 @@ pressure and competition",
   "reason": "Relatable student experience
 exam stress humor"
 }"""
-        parsed = parse_json_response(raw_text)
+        parsed = normalize_result_schema(parse_json_response(raw_text))
         self.assertTrue(parsed["humorous"])
         self.assertIn("Line 1", parsed["detected_text"])
         self.assertEqual(parsed["cultural_category"], "Education")
@@ -90,7 +90,7 @@ exam stress humor"
 }
 ```
 Hope this is helpful!"""
-        parsed = parse_json_response(raw_text)
+        parsed = normalize_result_schema(parse_json_response(raw_text))
         self.assertFalse(parsed["humorous"])
         self.assertEqual(parsed["prediction"], "Not Humorous")
         self.assertEqual(parsed["cultural_category"], "No specific cultural category detected")
